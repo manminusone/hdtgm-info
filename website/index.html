@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title> how did this get made stats </title>
+		<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+		<!-- Compiled and minified CSS -->
+		<link rel="stylesheet" href="materialize/css/materialize.min.css">
+		<!-- Compiled and minified JavaScript -->
+		<script src="materialize/js/materialize.min.js"></script>
+		<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+		<script src="https://cdn.jsdelivr.net/npm/chart.js@2.7.0/dist/Chart.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+		<script src="hdtgm-data.js"></script>
+		<script src="graphs.js"></script>
+		<link href="https://fonts.googleapis.com/css?family=Ubuntu+Mono" rel="stylesheet">
+		<style>
+			main,footer { padding-left: 300px !important; }
+			@media only screen and (max-width: 992px) {
+				header, main, footer {
+	    			padding-left: 0 !important;
+				}
+			}
+			#intro-div h2 { font-family: 'Ubuntu Mono',monospace; filter: drop-shadow(3px 4px 4px #666);}
+
+			.graph-hide {
+				position: absolute !important;
+				top: -9999px !important;
+				left: -9999px !important;
+			}
+
+		</style>
+	</head>
+	<body>
+		<header>
+		<ul id="side-menu" class="side-nav fixed">
+
+			<li> <a href="#" class="brand-logo center">LOGO</a> </li>
+		</ul>
+		 <a href="#" data-activates="side-menu" class="button-collapse" style="font-size: 32px"><i class="material-icons">menu</i></a>
+		</header>
+		 <main>
+		 	<div class="container" id="body-div" name="body-div">
+		 		<div id="intro-div" name="intro-div">
+		 			<h2 class="center-align"> HOW DID THIS GET GRAPHED? </h2>
+		 			<h3 class="center-align"> The HDTGM info graph site </h3>
+		 		</div>
+		 	</div>
+		 </main>
+		 <script janguage="JavaScript">
+		 	$(".button-collapse").sideNav();
+		 	$(document).ready(function() {
+
+		 		for (var iter = 0, last_item = $('#body-div'); iter < GRAPH.length; ++iter, last_item = $('canvas:last')) {
+		 			last_item.after('<canvas id="c-'+GRAPH[iter].id+'" name="'+GRAPH[iter].id+'"></canvas>');
+		 			$('#side-menu li:last').after('<li> <a href="#" onClick="showGraph('+iter+')">'+GRAPH[iter].title+'</a></li>');
+		 		}
+		 	})
+		 </script>
+	</body>
+</html>
