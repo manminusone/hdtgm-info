@@ -7,7 +7,17 @@ This repo generates a set of files that can be used to serve a static website. T
 
 There's one Perl script that loads the current list of episodes from the HDTGM website and generates a JavaScript file of data for the site. The script grabs content from the API of [www.themoviedb.org](http://www.themoviedb.org/), so if you want to run this script on your own site, you will have to create an account, log in, and create an API key to use in the script.
 
-There's a variable in the script called `$THEMOVIEDB_APIKEY`, and you will not be surprised to learn that this is the place where you place your API key. 
+There's a variable in the script called `$THEMOVIEDB_APIKEY`, and you will not be surprised to learn that this is the place where you place your API key. However, if you plan on submitting changes to the Git repo, you don't have to put your key in generate.pl and risk uploading your API key. You just generate a blank cache file, which is the very next section here!
+
+### Generating a blank cache file
+
+If you want to generate a blank cache.pl file, just run this command:
+
+```bash
+perl generate.pl -c
+```
+
+And then you can edit the existing file. Reasons you would want to include adding in your TMDB API key, as discussed above. This file is read in at the start of the script and written out at the end, so any changes you make will likely have an impact on the running of the program.
 
 ### Building the site 
 

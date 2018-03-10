@@ -10,17 +10,18 @@ use JSON;
 
 binmode STDOUT, ":encoding(UTF-8)";  # might get UTF-8 data
 
-my $THEMOVIEDB_APIKEY = ''; # get API key at https://www.themoviedb.org/
-my(%MOVIECACHE) = ();   # title => data
-my(%YEARCACHE) = ();    # title => year
-my(%PERSONCACHE) = ();  # name => ID
-my(@GUESTCACHE) = ();   # show # => guest ID
-my(@SHOWCACHE) = ();    # show # => movie ID
-my(@LIVECACHE) = ();     # show # => bool
+my $THEMOVIEDB_APIKEY = undef; # get API key at https://www.themoviedb.org/
+my(%MOVIECACHE) = ();          # title => data
+my(%YEARCACHE) = ();           # title => year
+my(%PERSONCACHE) = ();         # name => ID
+my(@GUESTCACHE) = ();          # show # => guest ID
+my(@SHOWCACHE) = ();           # show # => movie ID
+my(@LIVECACHE) = ();           # show # => bool
 
 my $HELPTEXT = <<FOO;
-Usage: generate.pl [ -t ] [ -j ] [ -a ] [ -h ]
+Usage: generate.pl [ -c ] [ -t ] [ -j ] [ -a ] [ -h ]
 
+  -c  generate blank config file (if none exists)
   -t  generate intermediate text file
   -j  generate end Javascript
   -a  do all steps
@@ -52,9 +53,18 @@ sub write_cache {
 	print $fh <<'HDR';
 # cache.pl -- machine-generated file of cached values
 
+HDR
+	print $fh <<'MID';
+
+# $THEMOVIEDB_APIKEY -- your API key from www.themoviedb.org
+
+MID
+	print $fh "\$THEMOVIEDB_APIKEY ||= \"${THEMOVIEDB_APIKEY}\"; # don't set the value if it already exists\n";
+	print $fh <<'MID';
+
 # %MOVIECACHE -- cached API results, keyed by movie title
 
-HDR
+MID
 	print $fh Data::Dumper->Dump( [ \%MOVIECACHE ], [ '*MOVIECACHE' ]);
 	print $fh <<'MID';
 
@@ -468,7 +478,7 @@ sub save_js {
 	}
 	close $fh;
 	$json->pretty(0);
-	open my $fh, '>', 'hdtgm-data.min.js' or die $!;
+	open $fh, '>', 'hdtgm-data.min.js' or die $!;
 	binmode $fh, ":encoding(UTF-8)";
 	print $fh "var SHOWS=" .
 		$json->encode(\@OUTPUT).
@@ -516,9 +526,19 @@ sub save_js {
 }
 
 # MAIN
+our($opt_t,$opt_j,$opt_a,$opt_h,$opt_c);
+getopts('tjahc');
+
+if ($opt_c) {
+	if (-e 'cache.pl') {
+		warn "cache.pl exists, so I won't write a new file. Delete the existing file if you want a blank cache.pl file.\n";
+	} else {
+		write_cache();
+		print "cache.pl written.\n";
+	}
+	exit 0;
+}
 read_cache();
-our($opt_t,$opt_j,$opt_a,$opt_h);
-getopts('tjah');
 
 if ($opt_h || ! ($opt_t || $opt_j || $opt_a)) {
 	print $HELPTEXT;
