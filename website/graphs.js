@@ -293,7 +293,6 @@ var GRAPH = [
 				if (SHOWS[iter] && SHOWS[iter].guests) {
 					for (let value of SHOWS[iter].guests) {
 						guestCount[value] = isNaN(guestCount[value]) ? 1 : guestCount[value] + 1;
-						console.log(value + ' > ' + guestCount[value]);
 						if (! tooltipArray[value]) tooltipArray[value] = Array();
 						tooltipArray[value].push(MOVIES[SHOWS[iter].movie].title);
 					}
@@ -394,5 +393,124 @@ var GRAPH = [
 			};
 
 		}
+	},
+	{
+		"title": "Most profitable movies",
+		"id": "movie-profit",
+		"prepFn": function() {
+			var sortArray = Array();
+			for (var iter = 1; iter < SHOWS.length; ++iter) {
+				if (! SHOWS[iter]) continue;
+				if (! SHOWS[iter].movie) continue;
+				if (MOVIES[SHOWS[iter].movie].budget > 0 && MOVIES[SHOWS[iter].movie].revenue > 0)
+					sortArray.push({ id: SHOWS[iter].movie, 
+						budget: MOVIES[SHOWS[iter].movie].budget,
+						revenue: MOVIES[SHOWS[iter].movie].revenue,
+						profit: MOVIES[SHOWS[iter].movie].revenue / MOVIES[SHOWS[iter].movie].budget });
+			}
+			sortArray.sort(function(a,b) { return b.profit - a.profit });
+			var labelArray = Array(), movieIdArray = Array(), valueArray = Array(), tooltipArray = Array();
+			for (var i = 0; i < 25; ++i) {
+				labelArray[i] = MOVIES[sortArray[i].id].title;
+				valueArray[i] = sortArray[i].profit * 100;
+				movieIdArray[i] = sortArray[i].id;
+				tooltipArray[i] = Array("Budget: $" + sortArray[i].budget.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,"),
+					"Revenue: $"+sortArray[i].revenue.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,"),
+					"Profit: " + String(Math.floor(sortArray[i].revenue / sortArray[i].budget * 10000) / 100) + '%'
+					);
+			}
+			return {
+				type: 'horizontalBar',
+				data: {
+					datasets: [{
+						label: "The most profitable movies",
+						data: valueArray,
+						backgroundColor: [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ],
+						datalabels: {
+							display: false
+						}
+					}],
+					labels: labelArray
+				},
+				options: {
+					tooltips: {
+						position: 'atMouse',
+						callbacks: {
+							label: function(tooltipItem, data) {
+								var num = tooltipItem.index;
+								return tooltipArray[num];
+							}
+						}
+					},
+					scales: {
+						xAxes: [{
+							ticks: {
+								beginAtZero: true
+							}
+						}]
+					}
+				}
+			};
+		}
+	},
+	{
+		"title": "Least profitable movies",
+		"id": "movie-least-profit",
+		"prepFn": function() {
+			var sortArray = Array();
+			for (var iter = 1; iter < SHOWS.length; ++iter) {
+				if (! SHOWS[iter]) continue;
+				if (! SHOWS[iter].movie) continue;
+				if (MOVIES[SHOWS[iter].movie].budget > 0 && MOVIES[SHOWS[iter].movie].revenue > 0)
+					sortArray.push({ id: SHOWS[iter].movie, 
+						budget: MOVIES[SHOWS[iter].movie].budget,
+						revenue: MOVIES[SHOWS[iter].movie].revenue,
+						profit: MOVIES[SHOWS[iter].movie].revenue / MOVIES[SHOWS[iter].movie].budget });
+			}
+			sortArray.sort(function(a,b) { return a.profit - b.profit });
+			var labelArray = Array(), movieIdArray = Array(), valueArray = Array(), tooltipArray = Array();
+			for (var i = 0; i < 25; ++i) {
+				labelArray[i] = MOVIES[sortArray[i].id].title;
+				valueArray[i] = sortArray[i].profit * 100;
+				movieIdArray[i] = sortArray[i].id;
+				tooltipArray[i] = Array("Budget: $" + sortArray[i].budget.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,"),
+					"Revenue: $"+sortArray[i].revenue.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,"),
+					"Profit: " + String(Math.floor(sortArray[i].revenue / sortArray[i].budget * 10000) / 100) + '%'
+					);
+			}
+			return {
+				type: 'horizontalBar',
+				data: {
+					datasets: [{
+						label: "The least profitable movies",
+						data: valueArray,
+						backgroundColor: [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ],
+						datalabels: {
+							display: false
+						}
+					}],
+					labels: labelArray
+				},
+				options: {
+					tooltips: {
+						position: 'atMouse',
+						callbacks: {
+							label: function(tooltipItem, data) {
+								var num = tooltipItem.index;
+								return tooltipArray[num];
+							}
+						}
+					},
+					scales: {
+						xAxes: [{
+							ticks: {
+								beginAtZero: true
+							}
+						}]
+					}
+				}
+			};
+		}
 	}
+
 ];
