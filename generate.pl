@@ -12,6 +12,7 @@ binmode STDOUT, ":encoding(UTF-8)";  # might get UTF-8 data
 
 my $THEMOVIEDB_APIKEY = undef; # get API key at https://www.themoviedb.org/
 my(%MOVIECACHE) = ();          # title => data
+my(%GENRECACHE) = ();		   # genre id => name
 my(%YEARCACHE) = ();           # title => year
 my(%PERSONCACHE) = ();         # name => ID
 my(@GUESTCACHE) = ();          # show # => guest ID
@@ -66,6 +67,12 @@ MID
 
 MID
 	print $fh Data::Dumper->Dump( [ \%MOVIECACHE ], [ '*MOVIECACHE' ]);
+	print $fh <<'MID';
+
+# %GENRECACHE -- genre names
+
+MID
+	print $fh Data::Dumper->Dump( [ \%GENRECACHE ], [ '*GENRECACHE' ] );
 	print $fh <<'MID';
 
 # %YEARCACHE -- cached year data for disambiguation, keyed by movie title
@@ -189,7 +196,9 @@ sub parse_csv {
 		$SHOWCACHE[$num] = $m->{id};
 		if (! $m->{cast}) {
 			my $tmp = get_movie_details($m->{id});
-			$m->{cast} = $tmp->{cast};
+			#$m->{cast} = $tmp->{cast};
+			$m->{$_} = $tmp->{$_} foreach keys %$tmp;
+
 		}
 		foreach my $p (@field) {
 			my $resp = get_person($p);
@@ -223,6 +232,7 @@ sub throttled_get {  # a call to get() with pauses inserted every few requests, 
 		sleep 10;
 		$recentReqs = 0;
 	}
+	if ($result eq '') { write_cache();  die "didn't get content!\n\$url = $url\n"; }
 	return $result;
 }
 
@@ -269,26 +279,26 @@ sub compare_titles {
 sub get_movie_details {
 	my($mid) = @_;
 	my($retval) = { cast => [ ] };
+	my $obj = undef;
 
 	my $url = 'https://api.themoviedb.org/3/movie/'.$mid . '/credits?api_key='.$THEMOVIEDB_APIKEY;
-	#print "\t$url\n";
 	my $resp = throttled_get $url;
-	if ($resp eq '') {
-		print "got an empty response. Waiting for a few seconds.\n";
-		sleep 10;
-		$resp = throttled_get $url;
-		if ($resp eq '') { write_cache(); die "no dice!" }
-	}
-	my $obj = undef;
 	eval { $obj = decode_json $resp };
 	warn $@ if $@;
-	#print Dumper($obj); exit 0;
 	foreach my $p (@{$obj->{cast}}) {
 		if (! $PERSONCACHE{$p->{name}}) {
 			$PERSONCACHE{$p->{name}} = $p->{id};
 		}
 		push @{$retval->{cast}}, $p->{id};
 	}
+
+	$url = 'https://api.themoviedb.org/3/movie/'.$mid . '?api_key='.$THEMOVIEDB_APIKEY;
+	$resp = throttled_get $url;
+	eval { $obj = decode_json $resp };
+	warn $@ if $@;
+	$retval->{budget} = $obj->{budget};
+	$retval->{revenue} = $obj->{revenue};
+	#print Dumper($retval); exit 0;
 	return $retval;
 }
 
@@ -310,13 +320,6 @@ sub get_movie {
 			'include_adult=false';
 		if ($year) { $url .= '&year='.$year; }
 		my $result = throttled_get $url;
-		if ($result eq '') {
-			print "Empty response, sleeping for a few seconds\n";
-			sleep 10;
-			$result = throttled_get $url;
-			if ($result eq '') { warn "empty response for title $title\n\$url = $url\n\n"; write_cache(); exit 0; }
-		}
-		
 		my $j; eval { $j = decode_json $result; };
 		if ($@) {
 			warn "Couldn't look up movie $title: $@";
@@ -388,6 +391,18 @@ sub get_movie {
 	}
 }
 
+
+## 
+## genre list from TMDB
+
+sub get_genre_list {
+	return if keys %GENRECACHE > 0;
+	my $url = 'https://api.themoviedb.org/3/genre/movie/list?api_key='.$THEMOVIEDB_APIKEY;
+	my $resp = throttled_get $url;
+	my $j = undef; eval { $j = decode_json $resp; };
+	if ($@) { warn $@; return undef; }
+	foreach my $e (@{$j->{genres}}) { $GENRECACHE{$e->{id}} = $e->{name}; }
+}
 ## 
 ## retrieve data about people in these movies
 ## 
@@ -403,12 +418,6 @@ sub get_person {
 			'query='.uri_escape($p).'&'.
 			'include_adult=false';
 		my $resp = throttled_get $url;
-		if ($resp eq '') { 
-			print "no response, waiting a few seconds...\n";
-			sleep 10;
-			$resp = throttled_get $url;
-			if ($resp eq '') { write_cache(); die "timeout didn't work, giving up"; }
-		 }
 		my $j = undef; eval { $j = decode_json $resp; } ;
 		if ($@) { warn $@; return undef; }
 		#print Dumper($j); #exit 0;
@@ -539,6 +548,12 @@ if ($opt_c) {
 	exit 0;
 }
 read_cache();
+
+if ($THEMOVIEDB_APIKEY eq '') {
+	warn "You need to provide the API key in cache.pl. See docs for details.\n";
+	exit 1;
+}
+get_genre_list();
 
 if ($opt_h || ! ($opt_t || $opt_j || $opt_a)) {
 	print $HELPTEXT;

@@ -4,9 +4,10 @@
 		<title> how did this get made stats </title>
 		<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
 		<!-- Compiled and minified CSS -->
-		<link rel="stylesheet" href="materialize/css/materialize.min.css">
-		<!-- Compiled and minified JavaScript -->
-		<script src="materialize/js/materialize.min.js"></script>
+  		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css">
+
+  		<!-- Compiled and minified JavaScript -->
+  		<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
 		<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 		<script src="https://cdn.jsdelivr.net/npm/chart.js@2.7.0/dist/Chart.min.js"></script>
 		<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
@@ -14,10 +15,10 @@
 		<script src="graphs.js"></script>
 		<link href="https://fonts.googleapis.com/css?family=Ubuntu+Mono" rel="stylesheet">
 		<style>
-			main,footer { padding-left: 300px !important; }
+			header,main,footer { padding-left: 300px; }
 			@media only screen and (max-width: 992px) {
 				header, main, footer {
-	    			padding-left: 0 !important;
+	    			padding-left: 0;
 				}
 			}
 			#intro-div h2 { font-family: 'Ubuntu Mono',monospace; filter: drop-shadow(3px 4px 4px #666);}
@@ -30,13 +31,18 @@
 
 		</style>
 	</head>
+
 	<body>
 		<header>
-		<ul id="side-menu" class="side-nav fixed">
-
-			<li> <a href="#" class="brand-logo center">LOGO</a> </li>
-		</ul>
-		 <a href="#" data-activates="side-menu" class="button-collapse" style="font-size: 32px"><i class="material-icons">menu</i></a>
+			<nav>
+				<div class="nav-wrapper">
+					<a href="#" onClick="showGraph(-1)" class="brand-logo"> <i class="material-icons" style="font-size: 2em;">poll</i> </a>
+					<a href="#" data-activates="side-menu" class="button-collapse"><i class="material-icons">menu</i></a>
+					<ul id="side-menu" class="side-nav fixed">
+						<li> <a href="#"> Dummy link </a> </li>
+					</ul>
+				</div>
+			</nav>
 		</header>
 		 <main>
 		 	<div class="container" id="body-div" name="body-div">
