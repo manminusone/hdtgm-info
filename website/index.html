@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<title> how did this get made stats </title>
+		<title> how did this get graphed? </title>
 		<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
 		<!-- Compiled and minified CSS -->
   		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css">
@@ -11,7 +11,7 @@
 		<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 		<script src="https://cdn.jsdelivr.net/npm/chart.js@2.7.0/dist/Chart.min.js"></script>
 		<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
-		<script src="hdtgm-data.js"></script>
+		<script src="hdtgm-data.min.js"></script>
 		<script src="graphs.js"></script>
 		<link href="https://fonts.googleapis.com/css?family=Ubuntu+Mono" rel="stylesheet">
 		<style>
@@ -37,10 +37,12 @@
 		<header>
 			<nav>
 				<div class="nav-wrapper">
-					<a href="#" onClick="showGraph(-1)" class="brand-logo"> <i class="material-icons" style="font-size: 2em;">poll</i> </a>
-					<a href="#" data-activates="side-menu" class="button-collapse"><i class="material-icons">menu</i></a>
+					<a href="#" onClick="showGraph(-1)" class="brand-logo"> <i class="material-icons" style="font-size: 2em;">poll</i> <small>&nbsp;HDTGG?</small></a>
+					<a href="#" data-activates="side-menu" class="button-collapse"><i class="material-icons">menu</i> </a>
 					<ul id="side-menu" class="side-nav fixed">
-						<li> <a href="#" style="display: none"> Dummy link </a> </li>
+						<li id="movies-list" name="movies-list"> <hr/> <a href="#" style="font-size: 18px;"><em>MOVIE-RELATED GRAPHS</em></a> <hr/></li>
+						<li id="people-list" name="people-list"> <hr/> <a href="#" style="font-size: 18px;"><em>PEOPLE-RELATED GRAPHS</em></a> <hr/> </li>
+						<li id="misc-list" name="misc-list"> <hr/> <a href="#" style="font-size: 18px;"><em>MISCELLANEOUS</em></a> <hr/></li>
 					</ul>
 				</div>
 			</nav>
@@ -53,6 +55,7 @@
 		 		</div>
 
 		 		<p> This site displays various graphs and charts about the movies talked about, and the people who guest-host on, the Earwolf podcast <em>How Did This Get Made?</em> </p>
+				<p> <span id="date-span" name="date-span"> </span> </p>
 
 		 		<p> This site is not associated with, nor endorsed by, the podcast <em>How Did This Get Made?</em>, its creators and hosts, the Earwolf Podcast Network, or the E.E. Scripps Company. </p>
 
@@ -68,9 +71,14 @@
 		 	$(".button-collapse").sideNav();
 		 	$(document).ready(function() {
 
-		 		for (var iter = 0, last_item = $('#body-div'); iter < GRAPH.length; ++iter, last_item = $('canvas:last')) {
-		 			last_item.after('<canvas id="c-'+GRAPH[iter].id+'" name="'+GRAPH[iter].id+'"></canvas>');
-		 			$('#side-menu li:last').after('<li> <a href="#" onClick="showGraph('+iter+')">'+GRAPH[iter].title+'</a></li>');
+				if (generateDate != '') $('#date-span').html('The data for these graphs was generated on <strong>' + generateDate + '.</strong>');
+		 		for (var iter = 0, last_canvas = $('#body-div'); iter < GRAPH.length; ++iter, last_canvas = $('canvas:last')) {
+		 			last_canvas.after('<canvas id="c-'+GRAPH[iter].id+'" name="'+GRAPH[iter].id+'"></canvas>');
+
+		 			$('#side-menu li#'+GRAPH[iter].graphType).after('<li><a href="#" id="'+GRAPH[iter].id+'" name="'+GRAPH[iter].id+'">'+GRAPH[iter].title+'</a></li>');
+		 			$('a#'+GRAPH[iter].id).click(showGraph.bind(null,iter));
+
+		 			// $('#side-menu li#'+GRAPH[iter].graphType).after('<li> <a href="#" onClick="showGraph('+iter+',this)">'+GRAPH[iter].title+'</a></li>');
 		 		}
 		 	})
 		 </script>

@@ -7,6 +7,7 @@ use Data::Dumper;
 use URI::Escape;
 use Getopt::Std;
 use JSON;
+use Date::Format;
 
 binmode STDOUT, ":encoding(UTF-8)";  # might get UTF-8 data
 
@@ -470,6 +471,7 @@ sub save_js {
 	}
 	open my $fh, '>', 'hdtgm-data.js' or die $!;
 	binmode $fh, ":encoding(UTF-8)";
+	print $fh "var generateDate = '" .time2str("%C",time). "';\n\n";
 	print $fh "var SHOWS = " .
 		$json->pretty->encode(\@OUTPUT).
 		";\n";
@@ -485,10 +487,14 @@ sub save_js {
 		print $fh "MOVIES[".$id."] = " . $json->encode($v) . ";\n";
 		$v->{id} = $id;
 	}
+	print $fh "\nvar GENRES = [];\n";
+	foreach my $k (keys %GENRECACHE) { printf($fh "GENRES.push({ 'id': %d, 'label': '%s'});\n", $k, $GENRECACHE{$k}); }
+
 	close $fh;
 	$json->pretty(0);
 	open $fh, '>', 'hdtgm-data.min.js' or die $!;
 	binmode $fh, ":encoding(UTF-8)";
+	print $fh "var generateDate='" .time2str("%C",time). "';";
 	print $fh "var SHOWS=" .
 		$json->encode(\@OUTPUT).
 		";";
@@ -504,34 +510,9 @@ sub save_js {
 		print $fh "MOVIES[".$id."]=" . $json->encode($v) . ";";
 		$v->{id} = $id;
 	}
+	print $fh "var GENRES=[];";
+	foreach my $k (keys %GENRECACHE) { printf($fh "GENRES.push({'id':%d,'label':'%s'});", $k, $GENRECACHE{$k}); }
 	close $fh;
-
-##	open my $fh, '>', 'hdtgm-data.js' or die $!;
-##	binmode $fh, ":encoding(UTF-8)";
-##	print $fh "var MOVIES = " . 
-##		$json->pretty->encode(\%MOVIECACHE) . 
-##		",\nPEOPLE = " . 
-##		$json->pretty->encode(\%PERSONCACHE) . 
-##		",\nGUESTS = " . 
-##		$json->pretty->encode(\@GUESTCACHE) . 
-##		",\nSHOWS = " .
-##		$json->pretty->encode(\@SHOWCACHE) . 
-##		";\n\n";
-##	close $fh;
-##
-##	$json->pretty(0);
-##	open my $fh, '>', 'hdtgm-data.min.js' or die $!;
-##	binmode $fh, ":encoding(UTF-8)";
-##	print $fh "var MOVIES=" . 
-##		$json->encode(\%MOVIECACHE) . 
-##		",PEOPLE=" . 
-##		$json->encode(\%PERSONCACHE) . 
-##		",GUESTS=" . 
-##		$json->encode(\@GUESTCACHE) . 
-##		",SHOWS=" .
-##		$json->encode(\@SHOWCACHE) . 
-##		";\n";
-##	close $fh;
 }
 
 # MAIN

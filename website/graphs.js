@@ -1,3 +1,4 @@
+// graphs using the data from the hdtgm.js file
 
 
 // surprising that this tooltip position isn't standard!
@@ -6,8 +7,11 @@ Chart.Tooltip.positioners.atMouse = function(elements, eventPosition) {
 };
 
 var GRAPHCACHE = Array();
-// graphs data
+
 function showGraph(which) { 
+	$('#side-menu li').removeClass('active');    // clear active class
+	$(event.target).parent().addClass('active'); // set the target <li> active (parent of the event.target item)
+
 	if (which == -1) {
 		$('#body-div').show();
 		$('canvas').addClass('graph-hide');
@@ -22,10 +26,10 @@ function showGraph(which) {
 	}
 }
 
-var liveCount = 0, studioCount = 0;
 var GRAPH = [
 	{
 		"id" : "live-shows",
+		"graphType": "misc-list",
 		"title" :  "Number of live and studio shows",
 		"prepFn": function() { 
 	 		liveCount = 0; studioCount = 0;
@@ -63,8 +67,57 @@ var GRAPH = [
 		 },
 	},
 	{
+		"title": "Most frequent genres",
+		"id": "movie-genres",
+		"graphType": "movies-list",
+		"prepFn": function() {
+			var tally = Array();
+			for (var iter = 1; iter < SHOWS.length; ++iter) {
+				if (SHOWS[iter] && SHOWS[iter].movie && MOVIES[SHOWS[iter].movie].genre_ids) {
+					for (let gid of MOVIES[SHOWS[iter].movie].genre_ids){
+						tally[gid] = (isNaN(tally[gid]) ? 1 : tally[gid] + 1);
+					}
+				}
+			}
+			var sortme = Array();
+			for (let g of GENRES)
+				if (tally[g.id] > 1)
+					sortme.push({'label': g.label, 'value': tally[g.id]});
+			sortme.sort(function(a,b){ return b.value - a.value });
+			var labelArray = Array(), valueArray = Array();
+			for (let s of sortme){
+				labelArray.push(s.label);
+				valueArray.push(s.value);
+			}
+			return {
+				type: 'bar',
+				data: { 
+					datasets: [{
+						label: 'Most frequent genres',
+						"data": valueArray,
+						backgroundColor: [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ],
+						datalabels: {
+							display: false
+						}
+					}],
+					labels: labelArray
+				},
+				options: {
+					scales: {
+						yAxes: [{
+							ticks: {
+								beginAtZero: true
+							}
+						}]
+					}
+				},
+			};
+		}
+	},
+	{
 		"title": "Group by year",
 		"id": "year-count",
+		"graphType": "movies-list",
 		"prepFn": function() {
 			var sparseColorArray = Array();
 			var years = new Array();
@@ -153,6 +206,7 @@ var GRAPH = [
 	{
 		"title": "Group by decade",
 		"id": "decade-count",
+		"graphType": "movies-list",
 		"prepFn": function() {
 			var sparseColorArray = Array();
 			var years = new Array();
@@ -218,6 +272,7 @@ var GRAPH = [
 	{
 		"title": "Stars in most movies",
 		"id": "people-rank",
+		"graphType": "people-list",
 		"prepFn": function() {
 			var starCount = Array(), personSort = Array(), tooltipArray = Array();
 			for (var iter = 1; iter < SHOWS.length; ++iter) {
@@ -239,15 +294,12 @@ var GRAPH = [
 					personSort.push({ id: e[0], name: e[1], val: starCount[e[0]]});
 			}
 			personSort.sort(function (a,b) { return b.val - a.val });
-			// console.log(personSort.slice(0,10));
 			var labelArray = Array(), personIdArray = Array(), valueArray = Array();
 			for (var i = 0; i < 25; ++i) {
 				labelArray[i] = personSort[i].name;
 				valueArray[i] = personSort[i].val;
 				personIdArray[i] = personSort[i].id;
 			}
-			// console.log(labelArray);
-			// console.log(valueArray);
 			return {
 				type: 'horizontalBar',
 				data: {
@@ -266,8 +318,6 @@ var GRAPH = [
 						position: 'atMouse',
 						callbacks: {
 							label: function(tooltipItem, data) {
-								// console.log(tooltipItem);
-								// console.log(data);
 								var num = tooltipItem.index;
 								return tooltipArray[personIdArray[num]];
 							}
@@ -287,6 +337,7 @@ var GRAPH = [
 	{
 		"title": "Most frequent guests",
 		"id": "guest-hosts",
+		"graphType": "people-list",
 		"prepFn": function() {
 			var guestCount = Array(),objArray = Array(), tooltipArray = Array();
 			for (var iter = 1; iter < SHOWS.length; ++iter) {
@@ -345,6 +396,7 @@ var GRAPH = [
 	{
 		"title": "Most expensive movies",
 		"id": "movie-budget",
+		"graphType": "movies-list",
 		"prepFn": function() {
 			var sortArray = Array();
 			for (var iter = 1; iter < SHOWS.length; ++iter) {
@@ -397,6 +449,7 @@ var GRAPH = [
 	{
 		"title": "Most profitable movies",
 		"id": "movie-profit",
+		"graphType": "movies-list",
 		"prepFn": function() {
 			var sortArray = Array();
 			for (var iter = 1; iter < SHOWS.length; ++iter) {
@@ -453,9 +506,11 @@ var GRAPH = [
 			};
 		}
 	},
+
 	{
 		"title": "Least profitable movies",
 		"id": "movie-least-profit",
+		"graphType": "movies-list",
 		"prepFn": function() {
 			var sortArray = Array();
 			for (var iter = 1; iter < SHOWS.length; ++iter) {
@@ -512,5 +567,4 @@ var GRAPH = [
 			};
 		}
 	}
-
 ];
