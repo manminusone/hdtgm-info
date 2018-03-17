@@ -8,21 +8,25 @@ Chart.Tooltip.positioners.atMouse = function(elements, eventPosition) {
 
 var GRAPHCACHE = Array();
 
+
 function showGraph(which) { 
-	$('#side-menu li').removeClass('active');    // clear active class
-	$(event.target).parent().addClass('active'); // set the target <li> active (parent of the event.target item)
 
 	if (which == -1) {
 		$('#body-div').show();
 		$('canvas').addClass('graph-hide');
 	} else {
+		var index = which.data.item;
+
+		$('#side-menu li').removeClass('active');    // clear active class
+		$(which.target).parent().addClass('active'); // set the target <li> active (parent of the event.target item)
+
 		$('#body-div').hide();
 		$('canvas').addClass('graph-hide');
-		$('#c-'+GRAPH[which].id).removeClass('graph-hide');
-		var ctx = document.getElementById('c-'+GRAPH[which].id).getContext('2d');
-		if (! GRAPHCACHE[which])
-			GRAPHCACHE[which] = GRAPH[which].prepFn();
-		var chart = new Chart(ctx, GRAPHCACHE[which]);
+		$('#c-'+GRAPH[index].id).removeClass('graph-hide');
+		var ctx = document.getElementById('c-'+GRAPH[index].id).getContext('2d');
+		if (! GRAPHCACHE[index])
+			GRAPHCACHE[index] = GRAPH[index].prepFn();
+		var chart = new Chart(ctx, GRAPHCACHE[index]);
 	}
 }
 
@@ -32,7 +36,7 @@ var GRAPH = [
 		"graphType": "misc-list",
 		"title" :  "Number of live and studio shows",
 		"prepFn": function() { 
-	 		liveCount = 0; studioCount = 0;
+	 		var liveCount = 0, studioCount = 0;
 	 		for (var m = 1; m < SHOWS.length; ++m)
 	 			if (SHOWS[m] == null)
 	 				++studioCount;
@@ -74,20 +78,24 @@ var GRAPH = [
 			var tally = Array();
 			for (var iter = 1; iter < SHOWS.length; ++iter) {
 				if (SHOWS[iter] && SHOWS[iter].movie && MOVIES[SHOWS[iter].movie].genre_ids) {
-					for (let gid of MOVIES[SHOWS[iter].movie].genre_ids){
-						tally[gid] = (isNaN(tally[gid]) ? 1 : tally[gid] + 1);
+					for (var n = 0; n < MOVIES[SHOWS[iter].movie].genre_ids.length; ++n) {
+						var this_one = MOVIES[SHOWS[iter].movie].genre_ids[n];
+						tally[this_one] = (isNaN(tally[this_one]) ? 1 : tally[this_one] + 1);
 					}
 				}
 			}
 			var sortme = Array();
-			for (let g of GENRES)
-				if (tally[g.id] > 1)
-					sortme.push({'label': g.label, 'value': tally[g.id]});
+			for (var n = 0; n < GENRES.length; ++n) {
+				var this_one = GENRES[n];
+
+				if (tally[this_one.id] > 1)
+					sortme.push({ 'label': this_one.label, 'value': tally[this_one.id] });
+			}
 			sortme.sort(function(a,b){ return b.value - a.value });
 			var labelArray = Array(), valueArray = Array();
-			for (let s of sortme){
-				labelArray.push(s.label);
-				valueArray.push(s.value);
+			for (var n = 0; n < sortme.length; ++n) {
+				labelArray.push(sortme[n].label);
+				valueArray.push(sortme[n].value);
 			}
 			return {
 				type: 'bar',
@@ -110,7 +118,7 @@ var GRAPH = [
 							}
 						}]
 					}
-				},
+				}
 			};
 		}
 	},
@@ -199,7 +207,7 @@ var GRAPH = [
 							}
 						}]
 					}
-				},
+				}
 			}; 
 		}
 	},
@@ -265,7 +273,7 @@ var GRAPH = [
 							}
 						}]
 					}
-				},
+				}
 			}; 
 		}
 	},
@@ -288,10 +296,12 @@ var GRAPH = [
 				}
 			}
 
-			var iter = PEOPLE.entries();
-			for (let e of iter) {
-				if (starCount[e[0]] > 0)
-					personSort.push({ id: e[0], name: e[1], val: starCount[e[0]]});
+			var pids = Object.keys(PEOPLE);
+			for (var n = 0; n < pids.length; ++n) {
+				var e = pids[n];
+				if (starCount[e] > 0) {
+					personSort.push({ id: e, name: PEOPLE[e], val: starCount[e]});
+				}
 			}
 			personSort.sort(function (a,b) { return b.val - a.val });
 			var labelArray = Array(), personIdArray = Array(), valueArray = Array();
@@ -342,16 +352,17 @@ var GRAPH = [
 			var guestCount = Array(),objArray = Array(), tooltipArray = Array();
 			for (var iter = 1; iter < SHOWS.length; ++iter) {
 				if (SHOWS[iter] && SHOWS[iter].guests) {
-					for (let value of SHOWS[iter].guests) {
+					for (var n = 0; n < SHOWS[iter].guests.length; ++n) {
+						var value = SHOWS[iter].guests[n];
 						guestCount[value] = isNaN(guestCount[value]) ? 1 : guestCount[value] + 1;
 						if (! tooltipArray[value]) tooltipArray[value] = Array();
 						tooltipArray[value].push(MOVIES[SHOWS[iter].movie].title);
 					}
 				}
 			}
-			for (let key of Object.keys(guestCount))
-				objArray.push( { id: key, value: guestCount[key], name: PEOPLE[key] || key });
-			objArray.sort(function (a,b) { return b.value - a.value });
+			for (var n = 0, tmpArray = Object.keys(guestCount); n < tmpArray.length; ++n)
+				objArray.push( { id: tmpArray[n], value: guestCount[tmpArray[n]], name: PEOPLE[tmpArray[n]] || tmpArray[n] });
+			objArray.sort(function (a,b) { return b.value - a.value; });
 			var labelArray = Array(), personIdArray = Array(), valueArray = Array();
 			for (var i = 0; i < 25; ++i) {
 				labelArray[i] = objArray[i].name;

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 	<head>
+		<meta charset="UTF-8">
 		<title> how did this get graphed? </title>
 		<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
 		<!-- Compiled and minified CSS -->
@@ -68,17 +69,14 @@
 		 	</div>
 		 </main>
 		 <script janguage="JavaScript">
-		 	$(".button-collapse").sideNav();
 		 	$(document).ready(function() {
-
-				if (generateDate != '') $('#date-span').html('The data for these graphs was generated on <strong>' + generateDate + '.</strong>');
+		 		$(".button-collapse").sideNav();
+				if (generateDate) $('#date-span').html('The data for these graphs was generated on <strong>' + generateDate + '.</strong>');
 		 		for (var iter = 0, last_canvas = $('#body-div'); iter < GRAPH.length; ++iter, last_canvas = $('canvas:last')) {
 		 			last_canvas.after('<canvas id="c-'+GRAPH[iter].id+'" name="'+GRAPH[iter].id+'"></canvas>');
 
 		 			$('#side-menu li#'+GRAPH[iter].graphType).after('<li><a href="#" id="'+GRAPH[iter].id+'" name="'+GRAPH[iter].id+'">'+GRAPH[iter].title+'</a></li>');
-		 			$('a#'+GRAPH[iter].id).click(showGraph.bind(null,iter));
-
-		 			// $('#side-menu li#'+GRAPH[iter].graphType).after('<li> <a href="#" onClick="showGraph('+iter+',this)">'+GRAPH[iter].title+'</a></li>');
+		 			$('a#'+GRAPH[iter].id).on('click', function(i) { return { item: i } }(iter), showGraph );
 		 		}
 		 	})
 		 </script>
