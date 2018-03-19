@@ -58,14 +58,17 @@ var GRAPH = [
 	 							size: '36'
 	 						},
 	 						formatter: function(value, context) {
-    							return value + ': ' + Math.round((value / (liveCount + studioCount)) * 100) + '%';
+    							return value + ' (' + Math.round((value / (liveCount + studioCount)) * 100) + '%)';
 							}
 	 					}
 	 				}],
 	 				labels: [
-	 					'Live episodes',
-	 					'Studio episodes'
+	 					'Live',
+	 					'Studio'
 	 				]
+	 			},
+	 			options: {
+					title: { display: true, text: "The number of live vs. studio episodes", fontSize: 14 },
 	 			}
 	 		};
 		 },
@@ -111,6 +114,8 @@ var GRAPH = [
 					labels: labelArray
 				},
 				options: {
+					legend: { display: false }, 
+					title: { display: true, text: "Most frequently covered genres", fontSize: 14 },
 					scales: {
 						yAxes: [{
 							ticks: {
@@ -184,6 +189,8 @@ var GRAPH = [
 					labels: labelData
 				},
 				options: {
+					legend: { display: false }, 
+					title: { display: true, text: "Movies grouped by release year", fontSize: 14 },
 					tooltips: {
 						callbacks: {
 							label: function(tooltipItem, data) {
@@ -266,6 +273,8 @@ var GRAPH = [
 					labels: labelData
 				},
 				options: {
+					legend: { display: false }, 
+					title: { display: true, text: "Movies grouped by decade", fontSize: 14 },
 					scales: {
 						yAxes: [{
 							ticks: {
@@ -324,6 +333,8 @@ var GRAPH = [
 					labels: labelArray
 				},
 				options: {
+					legend: { display: false }, 
+					title: { display: true, text: "The stars in the most films", fontSize: 14 },
 					tooltips: {
 						position: 'atMouse',
 						callbacks: {
@@ -383,6 +394,8 @@ var GRAPH = [
 					labels: labelArray
 				},
 				options: {
+					legend: { display: false }, 
+					title: { display: true, text: "The most frequent guests", fontSize: 14 },
 					tooltips: {
 						position: 'atMouse',
 						callbacks: {
@@ -436,6 +449,8 @@ var GRAPH = [
 					labels: labelArray
 				},
 				options: {
+					legend: { display: false }, 
+					title: { display: true, text: "The most expensive movies", fontSize: 14 },
 					tooltips: {
 						position: 'atMouse',
 						callbacks: {
@@ -497,6 +512,8 @@ var GRAPH = [
 					labels: labelArray
 				},
 				options: {
+					legend: { display: false }, 
+					title: { display: true, text: "The most profitable movies", fontSize: 14 },
 					tooltips: {
 						position: 'atMouse',
 						callbacks: {
@@ -558,7 +575,10 @@ var GRAPH = [
 					labels: labelArray
 				},
 				options: {
-					tooltips: {
+					legend: { display: false }, 
+					title: { display: true, text: "The least profitable movies", fontSize: 14 },
+
+					tooltips:  {
 						position: 'atMouse',
 						callbacks: {
 							label: function(tooltipItem, data) {
