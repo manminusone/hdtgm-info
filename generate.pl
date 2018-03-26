@@ -23,12 +23,13 @@ my(@SHOWCACHE) = ();           # show # => movie ID
 my(@LIVECACHE) = ();           # show # => bool
 
 my $HELPTEXT = <<FOO;
-Usage: generate.pl [ -c ] [ -t ] [ -j ] [ -a ] [ -h ]
+Usage: generate.pl [ -c ] [ -t ] [ -j ] [ -a ] [ -m ##### ] [ -h ]
 
   -c  generate blank config file (if none exists)
   -t  generate intermediate text file
   -j  generate end Javascript
   -a  do all steps
+  -m  do a lookup for a specific movie title
   -h  print this message
 
 FOO
@@ -523,10 +524,10 @@ sub save_js {
 ### MAIN CODE
 ###
 
-our($opt_t,$opt_j,$opt_a,$opt_h,$opt_c);
-getopts('tjahc');
+our($opt_t,$opt_j,$opt_a,$opt_h,$opt_c,$opt_m);
+getopts('tjahcm:');
 
-if ($opt_h || ! ($opt_t || $opt_j || $opt_a)) {
+if ($opt_h || ! ($opt_t || $opt_j || $opt_a || $opt_m)) {
 	print $HELPTEXT;
 	exit 0;
 }
@@ -548,6 +549,17 @@ if ($THEMOVIEDB_APIKEY eq '') {
 	exit 1;
 }
 get_genre_list();
+
+if ($opt_m) {
+	my $md = get_movie($opt_m);
+	if ($md->{id}) {
+		my $md2 = get_movie_details($md->{id});
+		#print Dumper($md2);
+		$md->{$_} = $md2->{$_} foreach keys %$md2;
+	}
+	print Dumper($md);
+	exit 0;
+}
 
 if ($opt_t || $opt_a || ($opt_j && ! -e 'data.csv')) {
 	get_remote_html();
