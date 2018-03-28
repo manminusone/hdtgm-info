@@ -275,10 +275,8 @@ var GRAPH = [
 					labels: labelData
 				},
 				options: {
-<<<<<<< HEAD
 					legend: { display: false }, 
 					title: { display: true, text: "Movies grouped by decade", fontSize: 14 },
-=======
 					tooltips: {
 						callbacks: {
 							label: function(tooltipItem, data) {
@@ -295,7 +293,6 @@ var GRAPH = [
 							}
 						}
 					},
->>>>>>> 14b142e5f2eb4b638279d979b12f35e4abe1c4d4
 					scales: {
 						yAxes: [{
 							ticks: {
