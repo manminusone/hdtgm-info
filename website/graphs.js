@@ -7,7 +7,9 @@ Chart.Tooltip.positioners.atMouse = function(elements, eventPosition) {
 };
 
 var GRAPHCACHE = Array();
-
+var COLOR25 = [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ]; 
+var ABVALUE = function(a,b){ return a.value - b.value; };
+var BAVALUE = function(a,b){ return b.value - a.value; };
 
 function showGraph(which) { 
 
@@ -75,25 +77,25 @@ var GRAPH = [
 		"id": "movie-genres",
 		"graphType": "movies-list",
 		"prepFn": function() {
-			var tally = Array();
+			var tally = Array(), n,this_one;
 			for (var iter = 1; iter < SHOWS.length; ++iter) {
 				if (SHOWS[iter] && SHOWS[iter].movie && MOVIES[SHOWS[iter].movie].genre_ids) {
-					for (var n = 0; n < MOVIES[SHOWS[iter].movie].genre_ids.length; ++n) {
-						var this_one = MOVIES[SHOWS[iter].movie].genre_ids[n];
+					for (n = 0; n < MOVIES[SHOWS[iter].movie].genre_ids.length; ++n) {
+						this_one = MOVIES[SHOWS[iter].movie].genre_ids[n];
 						tally[this_one] = (isNaN(tally[this_one]) ? 1 : tally[this_one] + 1);
 					}
 				}
 			}
 			var sortme = Array();
-			for (var n = 0; n < GENRES.length; ++n) {
-				var this_one = GENRES[n];
+			for (n = 0; n < GENRES.length; ++n) {
+				this_one = GENRES[n];
 
 				if (tally[this_one.id] > 1)
 					sortme.push({ 'label': this_one.label, 'value': tally[this_one.id] });
 			}
-			sortme.sort(function(a,b){ return b.value - a.value });
+			sortme.sort(BAVALUE);
 			var labelArray = Array(), valueArray = Array();
-			for (var n = 0; n < sortme.length; ++n) {
+			for (n = 0; n < sortme.length; ++n) {
 				labelArray.push(sortme[n].label);
 				valueArray.push(sortme[n].value);
 			}
@@ -103,7 +105,7 @@ var GRAPH = [
 					datasets: [{
 						label: 'Most frequent genres',
 						"data": valueArray,
-						backgroundColor: [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ],
+						backgroundColor: COLOR25,
 						datalabels: {
 							display: false
 						}
@@ -128,7 +130,7 @@ var GRAPH = [
 		"graphType": "movies-list",
 		"prepFn": function() {
 			var sparseColorArray = Array();
-			var years = new Array();
+			var years = [];
 			function initColorArray() {
 				for (var i = 1950; i < 2020; i += 10) {
 					var baseColor;
@@ -194,7 +196,7 @@ var GRAPH = [
 		"graphType": "movies-list",
 		"prepFn": function() {
 			var sparseColorArray = Array();
-			var years = new Array();
+			var years = [];
 			function initColorArray() {
 				for (var i = 1950; i < 2020; i += 10) {
 					var baseColor;
@@ -254,7 +256,7 @@ var GRAPH = [
 						callbacks: {
 							label: function(tooltipItem, data) {
 								var thisYear = tooltipItem.xLabel;
-								var tlist = new Array();
+								var tlist = [];
 								for (var iter = 1; iter < SHOWS.length; ++iter)  {
 									try {
 										if (SHOWS[iter] && SHOWS[iter].movie && parseInt(MOVIES[SHOWS[iter].movie].release_date) == thisYear) {
@@ -300,14 +302,14 @@ var GRAPH = [
 			for (var n = 0; n < pids.length; ++n) {
 				var e = pids[n];
 				if (starCount[e] > 0) {
-					personSort.push({ id: e, name: PEOPLE[e], val: starCount[e]});
+					personSort.push({ id: e, name: PEOPLE[e], value: starCount[e]});
 				}
 			}
-			personSort.sort(function (a,b) { return b.val - a.val });
+			personSort.sort(BAVALUE);
 			var labelArray = Array(), personIdArray = Array(), valueArray = Array();
 			for (var i = 0; i < 25; ++i) {
 				labelArray[i] = personSort[i].name;
-				valueArray[i] = personSort[i].val;
+				valueArray[i] = personSort[i].value;
 				personIdArray[i] = personSort[i].id;
 			}
 			return {
@@ -316,7 +318,7 @@ var GRAPH = [
 					datasets: [{
 						label: "The stars in the most films",
 						data: valueArray,
-						backgroundColor: [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ],
+						backgroundColor: COLOR25,
 						datalabels: {
 							display: false
 						}
@@ -349,10 +351,11 @@ var GRAPH = [
 		"id": "guest-hosts",
 		"graphType": "people-list",
 		"prepFn": function() {
+			var n;
 			var guestCount = Array(),objArray = Array(), tooltipArray = Array();
 			for (var iter = 1; iter < SHOWS.length; ++iter) {
 				if (SHOWS[iter] && SHOWS[iter].guests) {
-					for (var n = 0; n < SHOWS[iter].guests.length; ++n) {
+					for (n = 0; n < SHOWS[iter].guests.length; ++n) {
 						var value = SHOWS[iter].guests[n];
 						guestCount[value] = isNaN(guestCount[value]) ? 1 : guestCount[value] + 1;
 						if (! tooltipArray[value]) tooltipArray[value] = Array();
@@ -360,9 +363,9 @@ var GRAPH = [
 					}
 				}
 			}
-			for (var n = 0, tmpArray = Object.keys(guestCount); n < tmpArray.length; ++n)
+			for (n = 0, tmpArray = Object.keys(guestCount); n < tmpArray.length; ++n)
 				objArray.push( { id: tmpArray[n], value: guestCount[tmpArray[n]], name: PEOPLE[tmpArray[n]] || tmpArray[n] });
-			objArray.sort(function (a,b) { return b.value - a.value; });
+			objArray.sort(BAVALUE);
 			var labelArray = Array(), personIdArray = Array(), valueArray = Array();
 			for (var i = 0; i < 25; ++i) {
 				labelArray[i] = objArray[i].name;
@@ -375,7 +378,7 @@ var GRAPH = [
 					datasets: [{
 						label: "The most frequent guests",
 						data: valueArray,
-						backgroundColor: [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ],
+						backgroundColor: COLOR25,
 						datalabels: {
 							display: false
 						}
@@ -413,13 +416,13 @@ var GRAPH = [
 			for (var iter = 1; iter < SHOWS.length; ++iter) {
 				if (! SHOWS[iter]) continue;
 				if (! SHOWS[iter].movie) continue;
-				sortArray.push({ id: SHOWS[iter].movie, budget: MOVIES[SHOWS[iter].movie].budget });
+				sortArray.push({ id: SHOWS[iter].movie, value: MOVIES[SHOWS[iter].movie].budget });
 			}
-			sortArray.sort(function(a,b) { return b.budget - a.budget });
+			sortArray.sort(BAVALUE);
 			var labelArray = Array(), movieIdArray = Array(), valueArray = Array();
 			for (var i = 0; i < 25; ++i) {
 				labelArray[i] = MOVIES[sortArray[i].id].title;
-				valueArray[i] = sortArray[i].budget;
+				valueArray[i] = sortArray[i].value;
 				movieIdArray[i] = sortArray[i].id;
 			}
 			return {
@@ -428,7 +431,7 @@ var GRAPH = [
 					datasets: [{
 						label: "The most expensive movies",
 						data: valueArray,
-						backgroundColor: [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ],
+						backgroundColor: COLOR25,
 						datalabels: {
 							display: false
 						}
@@ -470,13 +473,13 @@ var GRAPH = [
 					sortArray.push({ id: SHOWS[iter].movie, 
 						budget: MOVIES[SHOWS[iter].movie].budget,
 						revenue: MOVIES[SHOWS[iter].movie].revenue,
-						profit: MOVIES[SHOWS[iter].movie].revenue / MOVIES[SHOWS[iter].movie].budget });
+						value: MOVIES[SHOWS[iter].movie].revenue / MOVIES[SHOWS[iter].movie].budget });
 			}
-			sortArray.sort(function(a,b) { return a.profit - b.profit });
+			sortArray.sort(ABVALUE);
 			var labelArray = Array(), movieIdArray = Array(), valueArray = Array(), tooltipArray = Array();
 			for (var i = 0; i < 25; ++i) {
 				labelArray[i] = MOVIES[sortArray[i].id].title;
-				valueArray[i] = sortArray[i].profit * 100;
+				valueArray[i] = sortArray[i].value * 100;
 				movieIdArray[i] = sortArray[i].id;
 				tooltipArray[i] = Array("Budget: $" + sortArray[i].budget.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,"),
 					"Revenue: $"+sortArray[i].revenue.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,"),
@@ -489,7 +492,7 @@ var GRAPH = [
 					datasets: [{
 						label: "The least profitable movies",
 						data: valueArray,
-						backgroundColor: [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ],
+						backgroundColor: COLOR25,
 						datalabels: {
 							display: false
 						}
@@ -530,13 +533,13 @@ var GRAPH = [
 					sortArray.push({ id: SHOWS[iter].movie, 
 						budget: MOVIES[SHOWS[iter].movie].budget,
 						revenue: MOVIES[SHOWS[iter].movie].revenue,
-						profit: MOVIES[SHOWS[iter].movie].revenue / MOVIES[SHOWS[iter].movie].budget });
+						value: MOVIES[SHOWS[iter].movie].revenue / MOVIES[SHOWS[iter].movie].budget });
 			}
-			sortArray.sort(function(a,b) { return b.profit - a.profit });
+			sortArray.sort(BAVALUE);
 			var labelArray = Array(), movieIdArray = Array(), valueArray = Array(), tooltipArray = Array();
 			for (var i = 0; i < 25; ++i) {
 				labelArray[i] = MOVIES[sortArray[i].id].title;
-				valueArray[i] = sortArray[i].profit * 100;
+				valueArray[i] = sortArray[i].value * 100;
 				movieIdArray[i] = sortArray[i].id;
 				tooltipArray[i] = Array("Budget: $" + sortArray[i].budget.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,"),
 					"Revenue: $"+sortArray[i].revenue.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,"),
@@ -549,7 +552,7 @@ var GRAPH = [
 					datasets: [{
 						label: "The most profitable movies",
 						data: valueArray,
-						backgroundColor: [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ],
+						backgroundColor: COLOR25,
 						datalabels: {
 							display: false
 						}
