@@ -13,13 +13,13 @@ var BAVALUE = function(a,b){ return b.value - a.value; };
 
 function showGraph(which) { 
 
+	$('#side-menu li').removeClass('active');    // clear active class
 	if (which == -1) {
 		$('#body-div').show();
 		$('canvas').addClass('graph-hide');
 	} else {
 		var index = which.data.item;
 
-		$('#side-menu li').removeClass('active');    // clear active class
 		$(which.target).parent().addClass('active'); // set the target <li> active (parent of the event.target item)
 
 		$('#body-div').hide();
@@ -40,7 +40,7 @@ var GRAPH = [
 		"prepFn": function() { 
 	 		var liveCount = 0, studioCount = 0;
 	 		for (var m = 1; m < SHOWS.length; ++m)
-	 			if (SHOWS[m] == null)
+	 			if (SHOWS[m] === null)
 	 				++studioCount;
 	 			else if (SHOWS[m].live == 1)
 	 				++liveCount;
@@ -153,7 +153,7 @@ var GRAPH = [
 			}
 			initColorArray();
 			for (var m = 1; m < SHOWS.length; ++m)
-				if (SHOWS[m].movie != null && MOVIES[SHOWS[m].movie] && /^\d\d\d\d/.test(MOVIES[SHOWS[m].movie].release_date)) {
+				if (SHOWS[m].movie !== null && MOVIES[SHOWS[m].movie] && /^\d\d\d\d/.test(MOVIES[SHOWS[m].movie].release_date)) {
 					var y = /^(\d\d\d)/.exec(MOVIES[SHOWS[m].movie].release_date)[1];
 					if (years[y * 10])
 						++years[y * 10];
@@ -190,7 +190,7 @@ var GRAPH = [
 						callbacks: {
 							label: function(tooltipItem, data) {
 								var thisYear = tooltipItem.xLabel;
-								var tlist = new Array();
+								var tlist = [];
 								for (var iter = 1; iter < SHOWS.length; ++iter)  {
 									try {
 										if (SHOWS[iter] && SHOWS[iter].movie && parseInt(MOVIES[SHOWS[iter].movie].release_date) == thisYear) {
@@ -311,11 +311,11 @@ var GRAPH = [
 		"prepFn": function() {
 			var starCount = Array(), personSort = Array(), tooltipArray = Array();
 			for (var iter = 1; iter < SHOWS.length; ++iter) {
-				if (SHOWS[iter] == null || SHOWS[iter].movie == null)
+				if (SHOWS[iter] === null || SHOWS[iter].movie === null)
 					continue;
 				for (var j = 0; j < MOVIES[SHOWS[iter].movie].cast.length; ++j) {
 					castId = MOVIES[SHOWS[iter].movie].cast[j];
-					if (tooltipArray[castId] == null)
+					if (tooltipArray[castId] === null)
 						tooltipArray[castId] = Array();
 					tooltipArray[castId].push(MOVIES[SHOWS[iter].movie].title);
 					if (! starCount[castId]) starCount[castId] = 0;

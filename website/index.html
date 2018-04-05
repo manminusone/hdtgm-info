@@ -83,7 +83,7 @@
 		 <script janguage="JavaScript">
 		 	$(document).ready(function() {
 		 		$(".button-collapse").sideNav();
-				if (generateDate) $('#date-span').html('The data for these graphs was generated on <strong>' + generateDate + '</strong> and covers films all the way through Episode '+(SHOWS.length)+', <em>'+MOVIES[SHOWS[SHOWS.length-1].movie].title+'</em>.');
+				if (generateDate) $('#date-span').html('The data for these graphs was generated on <strong>' + generateDate + '</strong> and covers films all the way through Episode '+(SHOWS.length - 1)+', <em>'+MOVIES[SHOWS[SHOWS.length-1].movie].title+'</em>.');
 		 		for (var iter = 0, last_canvas = $('#body-div'); iter < GRAPH.length; ++iter, last_canvas = $('canvas:last')) {
 		 			last_canvas.after('<canvas id="c-'+GRAPH[iter].id+'" name="'+GRAPH[iter].id+'"></canvas>');
 
