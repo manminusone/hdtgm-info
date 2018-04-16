@@ -315,7 +315,7 @@ var GRAPH = [
 					continue;
 				for (var j = 0; j < MOVIES[SHOWS[iter].movie].cast.length; ++j) {
 					castId = MOVIES[SHOWS[iter].movie].cast[j];
-					if (tooltipArray[castId] === null)
+					if (tooltipArray[castId] == null)
 						tooltipArray[castId] = Array();
 					tooltipArray[castId].push(MOVIES[SHOWS[iter].movie].title);
 					if (! starCount[castId]) starCount[castId] = 0;
