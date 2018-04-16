@@ -1,3 +1,4 @@
+// graphs using the data from the hdtgm.js file
 
 
 // surprising that this tooltip position isn't standard!
@@ -6,31 +7,40 @@ Chart.Tooltip.positioners.atMouse = function(elements, eventPosition) {
 };
 
 var GRAPHCACHE = Array();
-// graphs data
+var COLOR25 = [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ]; 
+var ABVALUE = function(a,b){ return a.value - b.value; };
+var BAVALUE = function(a,b){ return b.value - a.value; };
+
 function showGraph(which) { 
+
+	$('#side-menu li').removeClass('active');    // clear active class
 	if (which == -1) {
 		$('#body-div').show();
 		$('canvas').addClass('graph-hide');
 	} else {
+		var index = which.data.item;
+
+		$(which.target).parent().addClass('active'); // set the target <li> active (parent of the event.target item)
+
 		$('#body-div').hide();
 		$('canvas').addClass('graph-hide');
-		$('#c-'+GRAPH[which].id).removeClass('graph-hide');
-		var ctx = document.getElementById('c-'+GRAPH[which].id).getContext('2d');
-		if (! GRAPHCACHE[which])
-			GRAPHCACHE[which] = GRAPH[which].prepFn();
-		var chart = new Chart(ctx, GRAPHCACHE[which]);
+		$('#c-'+GRAPH[index].id).removeClass('graph-hide');
+		var ctx = document.getElementById('c-'+GRAPH[index].id).getContext('2d');
+		if (! GRAPHCACHE[index])
+			GRAPHCACHE[index] = GRAPH[index].prepFn();
+		var chart = new Chart(ctx, GRAPHCACHE[index]);
 	}
 }
 
-var liveCount = 0, studioCount = 0;
 var GRAPH = [
 	{
 		"id" : "live-shows",
+		"graphType": "misc-list",
 		"title" :  "Number of live and studio shows",
 		"prepFn": function() { 
-	 		liveCount = 0; studioCount = 0;
+	 		var liveCount = 0, studioCount = 0;
 	 		for (var m = 1; m < SHOWS.length; ++m)
-	 			if (SHOWS[m] == null)
+	 			if (SHOWS[m] === null)
 	 				++studioCount;
 	 			else if (SHOWS[m].live == 1)
 	 				++liveCount;
@@ -50,24 +60,166 @@ var GRAPH = [
 	 							size: '36'
 	 						},
 	 						formatter: function(value, context) {
-    							return value + ': ' + Math.round((value / (liveCount + studioCount)) * 100) + '%';
+    							return value + ' (' + Math.round((value / (liveCount + studioCount)) * 100) + '%)';
 							}
 	 					}
 	 				}],
 	 				labels: [
-	 					'Live episodes',
-	 					'Studio episodes'
+	 					'Live',
+	 					'Studio'
 	 				]
+	 			},
+	 			options: {
+					title: { display: true, text: "The number of live vs. studio episodes", fontSize: 14 },
 	 			}
 	 		};
 		 },
 	},
 	{
-		"title": "Group by year",
-		"id": "year-count",
+		"title": "Most frequent genres",
+		"id": "movie-genres",
+		"graphType": "movies-list",
+		"prepFn": function() {
+			var tally = Array(), n,this_one;
+			for (var iter = 1; iter < SHOWS.length; ++iter) {
+				if (SHOWS[iter] && SHOWS[iter].movie && MOVIES[SHOWS[iter].movie].genre_ids) {
+					for (n = 0; n < MOVIES[SHOWS[iter].movie].genre_ids.length; ++n) {
+						this_one = MOVIES[SHOWS[iter].movie].genre_ids[n];
+						tally[this_one] = (isNaN(tally[this_one]) ? 1 : tally[this_one] + 1);
+					}
+				}
+			}
+			var sortme = Array();
+			for (n = 0; n < GENRES.length; ++n) {
+				this_one = GENRES[n];
+
+				if (tally[this_one.id] > 1)
+					sortme.push({ 'label': this_one.label, 'value': tally[this_one.id] });
+			}
+			sortme.sort(BAVALUE);
+			var labelArray = Array(), valueArray = Array();
+			for (n = 0; n < sortme.length; ++n) {
+				labelArray.push(sortme[n].label);
+				valueArray.push(sortme[n].value);
+			}
+			return {
+				type: 'bar',
+				data: { 
+					datasets: [{
+						label: 'Most frequent genres',
+						"data": valueArray,
+						backgroundColor: COLOR25,
+						datalabels: {
+							display: false
+						}
+					}],
+					labels: labelArray
+				},
+				options: {
+					legend: { display: false }, 
+					title: { display: true, text: "Most frequently covered genres", fontSize: 14 },
+					scales: {
+						yAxes: [{
+							ticks: {
+								beginAtZero: true
+							}
+						}]
+					}
+				}
+			};
+		}
+	},
+	{
+		"title": "Group by decade",
+		"id": "decade-count",
+		"graphType": "movies-list",
 		"prepFn": function() {
 			var sparseColorArray = Array();
-			var years = new Array();
+			var years = [];
+			function initColorArray() {
+				for (var i = 1950; i < 2020; i += 10) {
+					var baseColor;
+					switch (i) {
+						case 1950: baseColor = Array(255,204,153); break;
+						case 1960: baseColor = Array(224,224,224); break;
+						case 1970: baseColor = Array(255,153,153); break;
+						case 1980: baseColor = Array(153,204,255); break;
+						case 1990: baseColor = Array(255,255,153); break;
+						case 2000: baseColor = Array(153,255,255); break;
+						case 2010: baseColor = Array(204,153,255); break;
+					}
+					sparseColorArray[i] = '#' + ('0'+baseColor[0].toString(16)).substr(-2) + ('0'+baseColor[1].toString(16)).substr(-2) + ('0'+baseColor[2].toString(16)).substr(-2);
+				}
+			}
+			initColorArray();
+			for (var m = 1; m < SHOWS.length; ++m)
+				if (SHOWS[m].movie !== null && MOVIES[SHOWS[m].movie] && /^\d\d\d\d/.test(MOVIES[SHOWS[m].movie].release_date)) {
+					var y = /^(\d\d\d)/.exec(MOVIES[SHOWS[m].movie].release_date)[1];
+					if (years[y * 10])
+						++years[y * 10];
+					else 
+						years[y * 10] = 1;
+				}
+			var labelData = Array(),barLabelData = Array(),valueData = Array(), bkgColor = Array();
+			for (var iter = 1900; iter < years.length; iter += 10) {
+				if (years[iter] > 0) {
+					labelData.push(iter+'s');
+					barLabelData.push('Number of movies in the '+iter+'s');
+					valueData.push(years[iter]);
+					bkgColor.push(sparseColorArray[iter]);
+				}
+
+			}
+			return {
+				type: 'bar',
+				data: { 
+					datasets: [{
+						label: 'Movies grouped by decade',
+						"data": valueData,
+						backgroundColor: bkgColor,
+						datalabels: {
+							display: false
+						}
+					}],
+					labels: labelData
+				},
+				options: {
+					legend: { display: false }, 
+					title: { display: true, text: "Movies grouped by release year", fontSize: 14 },
+					tooltips: {
+						callbacks: {
+							label: function(tooltipItem, data) {
+								var thisYear = tooltipItem.xLabel;
+								var tlist = [];
+								for (var iter = 1; iter < SHOWS.length; ++iter)  {
+									try {
+										if (SHOWS[iter] && SHOWS[iter].movie && parseInt(MOVIES[SHOWS[iter].movie].release_date) == thisYear) {
+											tlist.push(MOVIES[SHOWS[iter].movie].title);
+										}
+									} catch (error) { console.log('failed at iter = ' + iter); console.error(error); }
+								}
+								return tlist;
+							}
+						}
+					},
+					scales: {
+						yAxes: [{
+							ticks: {
+								beginAtZero: true
+							}
+						}]
+					}
+				}
+			}; 
+		}
+	},
+	{
+		"title": "Group by year",
+		"id": "year-count",
+		"graphType": "movies-list",
+		"prepFn": function() {
+			var sparseColorArray = Array();
+			var years = [];
 			function initColorArray() {
 				for (var i = 1950; i < 2020; i += 10) {
 					var baseColor;
@@ -123,11 +275,13 @@ var GRAPH = [
 					labels: labelData
 				},
 				options: {
+					legend: { display: false }, 
+					title: { display: true, text: "Movies grouped by decade", fontSize: 14 },
 					tooltips: {
 						callbacks: {
 							label: function(tooltipItem, data) {
 								var thisYear = tooltipItem.xLabel;
-								var tlist = new Array();
+								var tlist = [];
 								for (var iter = 1; iter < SHOWS.length; ++iter)  {
 									try {
 										if (SHOWS[iter] && SHOWS[iter].movie && parseInt(MOVIES[SHOWS[iter].movie].release_date) == thisYear) {
@@ -146,82 +300,18 @@ var GRAPH = [
 							}
 						}]
 					}
-				},
-			}; 
-		}
-	},
-	{
-		"title": "Group by decade",
-		"id": "decade-count",
-		"prepFn": function() {
-			var sparseColorArray = Array();
-			var years = new Array();
-			function initColorArray() {
-				for (var i = 1950; i < 2020; i += 10) {
-					var baseColor;
-					switch (i) {
-						case 1950: baseColor = Array(255,204,153); break;
-						case 1960: baseColor = Array(224,224,224); break;
-						case 1970: baseColor = Array(255,153,153); break;
-						case 1980: baseColor = Array(153,204,255); break;
-						case 1990: baseColor = Array(255,255,153); break;
-						case 2000: baseColor = Array(153,255,255); break;
-						case 2010: baseColor = Array(204,153,255); break;
-					}
-					sparseColorArray[i] = '#' + ('0'+baseColor[0].toString(16)).substr(-2) + ('0'+baseColor[1].toString(16)).substr(-2) + ('0'+baseColor[2].toString(16)).substr(-2);
 				}
-			}
-			initColorArray();
-			for (var m = 1; m < SHOWS.length; ++m)
-				if (SHOWS[m].movie != null && MOVIES[SHOWS[m].movie] && /^\d\d\d\d/.test(MOVIES[SHOWS[m].movie].release_date)) {
-					var y = /^(\d\d\d)/.exec(MOVIES[SHOWS[m].movie].release_date)[1];
-					if (years[y * 10])
-						++years[y * 10];
-					else 
-						years[y * 10] = 1;
-				}
-			var labelData = Array(),barLabelData = Array(),valueData = Array(), bkgColor = Array();
-			for (var iter = 1900; iter < years.length; iter += 10) {
-				if (years[iter] > 0) {
-					labelData.push(iter+'s');
-					barLabelData.push('Number of movies in the '+iter+'s');
-					valueData.push(years[iter]);
-					bkgColor.push(sparseColorArray[iter]);
-				}
-
-			}
-			return {
-				type: 'bar',
-				data: { 
-					datasets: [{
-						label: 'Movies grouped by decade',
-						"data": valueData,
-						backgroundColor: bkgColor,
-						datalabels: {
-							display: false
-						}
-					}],
-					labels: labelData
-				},
-				options: {
-					scales: {
-						yAxes: [{
-							ticks: {
-								beginAtZero: true
-							}
-						}]
-					}
-				},
 			}; 
 		}
 	},
 	{
 		"title": "Stars in most movies",
 		"id": "people-rank",
+		"graphType": "people-list",
 		"prepFn": function() {
 			var starCount = Array(), personSort = Array(), tooltipArray = Array();
 			for (var iter = 1; iter < SHOWS.length; ++iter) {
-				if (SHOWS[iter] == null || SHOWS[iter].movie == null)
+				if (SHOWS[iter] === null || SHOWS[iter].movie === null)
 					continue;
 				for (var j = 0; j < MOVIES[SHOWS[iter].movie].cast.length; ++j) {
 					castId = MOVIES[SHOWS[iter].movie].cast[j];
@@ -233,28 +323,27 @@ var GRAPH = [
 				}
 			}
 
-			var iter = PEOPLE.entries();
-			for (let e of iter) {
-				if (starCount[e[0]] > 0)
-					personSort.push({ id: e[0], name: e[1], val: starCount[e[0]]});
+			var pids = Object.keys(PEOPLE);
+			for (var n = 0; n < pids.length; ++n) {
+				var e = pids[n];
+				if (starCount[e] > 0) {
+					personSort.push({ id: e, name: PEOPLE[e], value: starCount[e]});
+				}
 			}
-			personSort.sort(function (a,b) { return b.val - a.val });
-			// console.log(personSort.slice(0,10));
+			personSort.sort(BAVALUE);
 			var labelArray = Array(), personIdArray = Array(), valueArray = Array();
 			for (var i = 0; i < 25; ++i) {
 				labelArray[i] = personSort[i].name;
-				valueArray[i] = personSort[i].val;
+				valueArray[i] = personSort[i].value;
 				personIdArray[i] = personSort[i].id;
 			}
-			// console.log(labelArray);
-			// console.log(valueArray);
 			return {
 				type: 'horizontalBar',
 				data: {
 					datasets: [{
 						label: "The stars in the most films",
 						data: valueArray,
-						backgroundColor: [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ],
+						backgroundColor: COLOR25,
 						datalabels: {
 							display: false
 						}
@@ -262,12 +351,12 @@ var GRAPH = [
 					labels: labelArray
 				},
 				options: {
+					legend: { display: false }, 
+					title: { display: true, text: "The stars in the most films", fontSize: 14 },
 					tooltips: {
 						position: 'atMouse',
 						callbacks: {
 							label: function(tooltipItem, data) {
-								// console.log(tooltipItem);
-								// console.log(data);
 								var num = tooltipItem.index;
 								return tooltipArray[personIdArray[num]];
 							}
@@ -287,20 +376,23 @@ var GRAPH = [
 	{
 		"title": "Most frequent guests",
 		"id": "guest-hosts",
+		"graphType": "people-list",
 		"prepFn": function() {
+			var n;
 			var guestCount = Array(),objArray = Array(), tooltipArray = Array();
 			for (var iter = 1; iter < SHOWS.length; ++iter) {
 				if (SHOWS[iter] && SHOWS[iter].guests) {
-					for (let value of SHOWS[iter].guests) {
+					for (n = 0; n < SHOWS[iter].guests.length; ++n) {
+						var value = SHOWS[iter].guests[n];
 						guestCount[value] = isNaN(guestCount[value]) ? 1 : guestCount[value] + 1;
 						if (! tooltipArray[value]) tooltipArray[value] = Array();
 						tooltipArray[value].push(MOVIES[SHOWS[iter].movie].title);
 					}
 				}
 			}
-			for (let key of Object.keys(guestCount))
-				objArray.push( { id: key, value: guestCount[key], name: PEOPLE[key] || key });
-			objArray.sort(function (a,b) { return b.value - a.value });
+			for (n = 0, tmpArray = Object.keys(guestCount); n < tmpArray.length; ++n)
+				objArray.push( { id: tmpArray[n], value: guestCount[tmpArray[n]], name: PEOPLE[tmpArray[n]] || tmpArray[n] });
+			objArray.sort(BAVALUE);
 			var labelArray = Array(), personIdArray = Array(), valueArray = Array();
 			for (var i = 0; i < 25; ++i) {
 				labelArray[i] = objArray[i].name;
@@ -313,7 +405,7 @@ var GRAPH = [
 					datasets: [{
 						label: "The most frequent guests",
 						data: valueArray,
-						backgroundColor: [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ],
+						backgroundColor: COLOR25,
 						datalabels: {
 							display: false
 						}
@@ -321,6 +413,8 @@ var GRAPH = [
 					labels: labelArray
 				},
 				options: {
+					legend: { display: false }, 
+					title: { display: true, text: "The most frequent guests", fontSize: 14 },
 					tooltips: {
 						position: 'atMouse',
 						callbacks: {
@@ -345,18 +439,19 @@ var GRAPH = [
 	{
 		"title": "Most expensive movies",
 		"id": "movie-budget",
+		"graphType": "movies-list",
 		"prepFn": function() {
 			var sortArray = Array();
 			for (var iter = 1; iter < SHOWS.length; ++iter) {
 				if (! SHOWS[iter]) continue;
 				if (! SHOWS[iter].movie) continue;
-				sortArray.push({ id: SHOWS[iter].movie, budget: MOVIES[SHOWS[iter].movie].budget });
+				sortArray.push({ id: SHOWS[iter].movie, value: MOVIES[SHOWS[iter].movie].budget });
 			}
-			sortArray.sort(function(a,b) { return b.budget - a.budget });
+			sortArray.sort(BAVALUE);
 			var labelArray = Array(), movieIdArray = Array(), valueArray = Array();
 			for (var i = 0; i < 25; ++i) {
 				labelArray[i] = MOVIES[sortArray[i].id].title;
-				valueArray[i] = sortArray[i].budget;
+				valueArray[i] = sortArray[i].value;
 				movieIdArray[i] = sortArray[i].id;
 			}
 			return {
@@ -365,7 +460,7 @@ var GRAPH = [
 					datasets: [{
 						label: "The most expensive movies",
 						data: valueArray,
-						backgroundColor: [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ],
+						backgroundColor: COLOR25,
 						datalabels: {
 							display: false
 						}
@@ -373,6 +468,8 @@ var GRAPH = [
 					labels: labelArray
 				},
 				options: {
+					legend: { display: false }, 
+					title: { display: true, text: "The most expensive movies", fontSize: 14 },
 					tooltips: {
 						position: 'atMouse',
 						callbacks: {
@@ -395,8 +492,9 @@ var GRAPH = [
 		}
 	},
 	{
-		"title": "Most profitable movies",
-		"id": "movie-profit",
+		"title": "Least profitable movies",
+		"id": "movie-least-profit",
+		"graphType": "movies-list",
 		"prepFn": function() {
 			var sortArray = Array();
 			for (var iter = 1; iter < SHOWS.length; ++iter) {
@@ -406,13 +504,13 @@ var GRAPH = [
 					sortArray.push({ id: SHOWS[iter].movie, 
 						budget: MOVIES[SHOWS[iter].movie].budget,
 						revenue: MOVIES[SHOWS[iter].movie].revenue,
-						profit: MOVIES[SHOWS[iter].movie].revenue / MOVIES[SHOWS[iter].movie].budget });
+						value: MOVIES[SHOWS[iter].movie].revenue / MOVIES[SHOWS[iter].movie].budget });
 			}
-			sortArray.sort(function(a,b) { return b.profit - a.profit });
+			sortArray.sort(ABVALUE);
 			var labelArray = Array(), movieIdArray = Array(), valueArray = Array(), tooltipArray = Array();
 			for (var i = 0; i < 25; ++i) {
 				labelArray[i] = MOVIES[sortArray[i].id].title;
-				valueArray[i] = sortArray[i].profit * 100;
+				valueArray[i] = sortArray[i].value * 100;
 				movieIdArray[i] = sortArray[i].id;
 				tooltipArray[i] = Array("Budget: $" + sortArray[i].budget.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,"),
 					"Revenue: $"+sortArray[i].revenue.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,"),
@@ -423,9 +521,9 @@ var GRAPH = [
 				type: 'horizontalBar',
 				data: {
 					datasets: [{
-						label: "The most profitable movies",
+						label: "The least profitable movies",
 						data: valueArray,
-						backgroundColor: [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ],
+						backgroundColor: COLOR25,
 						datalabels: {
 							display: false
 						}
@@ -433,6 +531,8 @@ var GRAPH = [
 					labels: labelArray
 				},
 				options: {
+					legend: { display: false }, 
+					title: { display: true, text: "The most profitable movies", fontSize: 14 },
 					tooltips: {
 						position: 'atMouse',
 						callbacks: {
@@ -454,8 +554,9 @@ var GRAPH = [
 		}
 	},
 	{
-		"title": "Least profitable movies",
-		"id": "movie-least-profit",
+		"title": "Most profitable movies",
+		"id": "movie-profit",
+		"graphType": "movies-list",
 		"prepFn": function() {
 			var sortArray = Array();
 			for (var iter = 1; iter < SHOWS.length; ++iter) {
@@ -465,13 +566,13 @@ var GRAPH = [
 					sortArray.push({ id: SHOWS[iter].movie, 
 						budget: MOVIES[SHOWS[iter].movie].budget,
 						revenue: MOVIES[SHOWS[iter].movie].revenue,
-						profit: MOVIES[SHOWS[iter].movie].revenue / MOVIES[SHOWS[iter].movie].budget });
+						value: MOVIES[SHOWS[iter].movie].revenue / MOVIES[SHOWS[iter].movie].budget });
 			}
-			sortArray.sort(function(a,b) { return a.profit - b.profit });
+			sortArray.sort(BAVALUE);
 			var labelArray = Array(), movieIdArray = Array(), valueArray = Array(), tooltipArray = Array();
 			for (var i = 0; i < 25; ++i) {
 				labelArray[i] = MOVIES[sortArray[i].id].title;
-				valueArray[i] = sortArray[i].profit * 100;
+				valueArray[i] = sortArray[i].value * 100;
 				movieIdArray[i] = sortArray[i].id;
 				tooltipArray[i] = Array("Budget: $" + sortArray[i].budget.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,"),
 					"Revenue: $"+sortArray[i].revenue.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,"),
@@ -482,9 +583,9 @@ var GRAPH = [
 				type: 'horizontalBar',
 				data: {
 					datasets: [{
-						label: "The least profitable movies",
+						label: "The most profitable movies",
 						data: valueArray,
-						backgroundColor: [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ],
+						backgroundColor: COLOR25,
 						datalabels: {
 							display: false
 						}
@@ -492,7 +593,10 @@ var GRAPH = [
 					labels: labelArray
 				},
 				options: {
-					tooltips: {
+					legend: { display: false }, 
+					title: { display: true, text: "The least profitable movies", fontSize: 14 },
+
+					tooltips:  {
 						position: 'atMouse',
 						callbacks: {
 							label: function(tooltipItem, data) {
@@ -511,6 +615,5 @@ var GRAPH = [
 				}
 			};
 		}
-	}
-
+	}	
 ];

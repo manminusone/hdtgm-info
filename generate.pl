@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 
+# generate.pl -- retrieves content from various remote sites to generate JavaScript data files
+
 use strict;
 
 use LWP::Simple;
@@ -7,6 +9,7 @@ use Data::Dumper;
 use URI::Escape;
 use Getopt::Std;
 use JSON;
+use Date::Format;
 
 binmode STDOUT, ":encoding(UTF-8)";  # might get UTF-8 data
 
@@ -20,19 +23,20 @@ my(@SHOWCACHE) = ();           # show # => movie ID
 my(@LIVECACHE) = ();           # show # => bool
 
 my $HELPTEXT = <<FOO;
-Usage: generate.pl [ -c ] [ -t ] [ -j ] [ -a ] [ -h ]
+Usage: generate.pl [ -c ] [ -t ] [ -j ] [ -a ] [ -m ##### ] [ -h ]
 
   -c  generate blank config file (if none exists)
   -t  generate intermediate text file
   -j  generate end Javascript
   -a  do all steps
+  -m  do a lookup for a specific movie title
   -h  print this message
 
 FOO
 
 ###
 ### cache.pl contains a number of variables related to the gathered data, and is saved
-### periodically so that the program won't have to re-request data that it alread has
+### periodically so that the program won't have to re-request data that it already has
 ## 
 
 sub read_cache {
@@ -122,7 +126,7 @@ sub get_remote_html {
 	my(@MOVIELIST) = ();
 	my $fh;
 
-	if (-e 'remote-html.txt') { # can have file cached on local disk
+	if (-e 'remote-html.txt' && -M 'remote-html.txt' < 7) { # can have recently retrieved file cached on local disk
 		open $fh, '<', 'remote-html.txt' or die $!;
 		$txt = join('',<$fh>);
 		close $fh;
@@ -175,7 +179,7 @@ sub uniq {
 }
 
 ## 
-## read the above CSV file 
+## read the previously generated CSV file 
 ## 
 
 sub parse_csv {
@@ -264,7 +268,7 @@ sub compare_titles {
 		my($t2_copy) = $t2; $t2_copy =~ s{\s*(\&|and)\s*}{ }i;
 		return 1 if lc $t1_copy eq lc $t2_copy;
 	}
-	if ($t1 =~ m{[/:\!]} || $t2 =~ m{[/:\!]}) {
+	if ($t1 =~ m{[/:\!]} || $t2 =~ m{[/:\!]}) { # some troublesome punctuation
 		my $t1_copy = $t1; $t1_copy =~ y{/:!}{   }s;
 		my $t2_copy = $t2; $t2_copy =~ y{/:!}{   }s;
 		$t1_copy =~ s{\s+}{ }g;
@@ -275,7 +279,10 @@ sub compare_titles {
 }
 
 
-# The retrieval of any details that might be worth graphing out will go in here. Mainly used for cast.
+##
+## The retrieval of any details that might be worth graphing out will go in here. Mainly used for cast.
+##
+
 sub get_movie_details {
 	my($mid) = @_;
 	my($retval) = { cast => [ ] };
@@ -403,6 +410,7 @@ sub get_genre_list {
 	if ($@) { warn $@; return undef; }
 	foreach my $e (@{$j->{genres}}) { $GENRECACHE{$e->{id}} = $e->{name}; }
 }
+
 ## 
 ## retrieve data about people in these movies
 ## 
@@ -420,16 +428,13 @@ sub get_person {
 		my $resp = throttled_get $url;
 		my $j = undef; eval { $j = decode_json $resp; } ;
 		if ($@) { warn $@; return undef; }
-		#print Dumper($j); #exit 0;
 		if ($j->{total_results} == 1) {
-			#print "\t$p = ".$j->{results}->[0]->{id}."\n";
 			$PERSONCACHE{$p} = $j->{results}->[0]->{id};
 			return $j->{results}->[0]->{id};
 		} elsif ($j->{total_results} == 0) {
 			return undef;
 		} else {  # multiple people
 
-			#print "checking for seen ID\n";
 			foreach my $p (@{$j->{results}}) {  # check if any of the person IDs has already been seen
 				foreach my $v (values %PERSONCACHE) {
 					if ($v == $p->{id}) {
@@ -439,7 +444,6 @@ sub get_person {
 				}
 			}
 
-			#print "checking for max credits\n";
 			my($MAXCREDITS) = 0;
 			my($this) = undef;
 			foreach my $p (@{$j->{results}}) {
@@ -470,6 +474,7 @@ sub save_js {
 	}
 	open my $fh, '>', 'hdtgm-data.js' or die $!;
 	binmode $fh, ":encoding(UTF-8)";
+	print $fh "var generateDate = '" .time2str("%C",time). "';\n\n";
 	print $fh "var SHOWS = " .
 		$json->pretty->encode(\@OUTPUT).
 		";\n";
@@ -485,10 +490,14 @@ sub save_js {
 		print $fh "MOVIES[".$id."] = " . $json->encode($v) . ";\n";
 		$v->{id} = $id;
 	}
+	print $fh "\nvar GENRES = [];\n";
+	foreach my $k (keys %GENRECACHE) { printf($fh "GENRES.push({ 'id': %d, 'label': '%s'});\n", $k, $GENRECACHE{$k}); }
+
 	close $fh;
 	$json->pretty(0);
 	open $fh, '>', 'hdtgm-data.min.js' or die $!;
 	binmode $fh, ":encoding(UTF-8)";
+	print $fh "var generateDate='" .time2str("%C",time). "';";
 	print $fh "var SHOWS=" .
 		$json->encode(\@OUTPUT).
 		";";
@@ -504,39 +513,24 @@ sub save_js {
 		print $fh "MOVIES[".$id."]=" . $json->encode($v) . ";";
 		$v->{id} = $id;
 	}
+	print $fh "var GENRES=[];";
+	foreach my $k (keys %GENRECACHE) { printf($fh "GENRES.push({'id':%d,'label':'%s'});", $k, $GENRECACHE{$k}); }
 	close $fh;
-
-##	open my $fh, '>', 'hdtgm-data.js' or die $!;
-##	binmode $fh, ":encoding(UTF-8)";
-##	print $fh "var MOVIES = " . 
-##		$json->pretty->encode(\%MOVIECACHE) . 
-##		",\nPEOPLE = " . 
-##		$json->pretty->encode(\%PERSONCACHE) . 
-##		",\nGUESTS = " . 
-##		$json->pretty->encode(\@GUESTCACHE) . 
-##		",\nSHOWS = " .
-##		$json->pretty->encode(\@SHOWCACHE) . 
-##		";\n\n";
-##	close $fh;
-##
-##	$json->pretty(0);
-##	open my $fh, '>', 'hdtgm-data.min.js' or die $!;
-##	binmode $fh, ":encoding(UTF-8)";
-##	print $fh "var MOVIES=" . 
-##		$json->encode(\%MOVIECACHE) . 
-##		",PEOPLE=" . 
-##		$json->encode(\%PERSONCACHE) . 
-##		",GUESTS=" . 
-##		$json->encode(\@GUESTCACHE) . 
-##		",SHOWS=" .
-##		$json->encode(\@SHOWCACHE) . 
-##		";\n";
-##	close $fh;
 }
 
-# MAIN
-our($opt_t,$opt_j,$opt_a,$opt_h,$opt_c);
-getopts('tjahc');
+
+
+###
+### MAIN CODE
+###
+
+our($opt_t,$opt_j,$opt_a,$opt_h,$opt_c,$opt_m);
+getopts('tjahcm:');
+
+if ($opt_h || ! ($opt_t || $opt_j || $opt_a || $opt_m)) {
+	print $HELPTEXT;
+	exit 0;
+}
 
 if ($opt_c) {
 	if (-e 'cache.pl') {
@@ -547,6 +541,7 @@ if ($opt_c) {
 	}
 	exit 0;
 }
+
 read_cache();
 
 if ($THEMOVIEDB_APIKEY eq '') {
@@ -555,12 +550,18 @@ if ($THEMOVIEDB_APIKEY eq '') {
 }
 get_genre_list();
 
-if ($opt_h || ! ($opt_t || $opt_j || $opt_a)) {
-	print $HELPTEXT;
+if ($opt_m) {
+	my $md = get_movie($opt_m);
+	if ($md->{id}) {
+		my $md2 = get_movie_details($md->{id});
+		#print Dumper($md2);
+		$md->{$_} = $md2->{$_} foreach keys %$md2;
+	}
+	print Dumper($md);
 	exit 0;
 }
 
-if ($opt_t || $opt_a || $opt_j) {
+if ($opt_t || $opt_a || ($opt_j && ! -e 'data.csv')) {
 	get_remote_html();
 	parse_csv();
 }
