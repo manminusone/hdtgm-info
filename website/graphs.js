@@ -185,20 +185,12 @@ var GRAPH = [
 				},
 				options: {
 					legend: { display: false }, 
-					title: { display: true, text: "Movies grouped by release year", fontSize: 14 },
+					title: { display: true, text: "Movies grouped by decade", fontSize: 14 },
 					tooltips: {
 						callbacks: {
 							label: function(tooltipItem, data) {
 								var thisYear = tooltipItem.xLabel;
-								var tlist = [];
-								for (var iter = 1; iter < SHOWS.length; ++iter)  {
-									try {
-										if (SHOWS[iter] && SHOWS[iter].movie && parseInt(MOVIES[SHOWS[iter].movie].release_date) == thisYear) {
-											tlist.push(MOVIES[SHOWS[iter].movie].title);
-										}
-									} catch (error) { console.log('failed at iter = ' + iter); console.error(error); }
-								}
-								return tlist;
+								return years[parseInt(thisYear)] + ' movie' + (years[parseInt(thisYear)] == 1 ? '': 's');
 							}
 						}
 					},
@@ -532,7 +524,7 @@ var GRAPH = [
 				},
 				options: {
 					legend: { display: false }, 
-					title: { display: true, text: "The most profitable movies", fontSize: 14 },
+					title: { display: true, text: "The least profitable movies", fontSize: 14 },
 					tooltips: {
 						position: 'atMouse',
 						callbacks: {
@@ -594,7 +586,7 @@ var GRAPH = [
 				},
 				options: {
 					legend: { display: false }, 
-					title: { display: true, text: "The least profitable movies", fontSize: 14 },
+					title: { display: true, text: "The most profitable movies", fontSize: 14 },
 
 					tooltips:  {
 						position: 'atMouse',
