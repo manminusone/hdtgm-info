@@ -480,7 +480,7 @@ sub save_js {
 		";\n";
 	print $fh "var PEOPLE = [];\n";
 	while (my($key,$val) = each %PERSONCACHE) {
-		print $fh "PEOPLE[".$val."] = \"" . $key . "\";\n"
+		print $fh "PEOPLE[".$val."] = " . $json->encode($key) . ";\n"
 			if int($val) > 0;
 	}
 	print $fh "\nvar MOVIES = [];\n";
@@ -503,7 +503,7 @@ sub save_js {
 		";";
 	print $fh "var PEOPLE=[];";
 	while (my($key,$val) = each %PERSONCACHE) {
-		print $fh "PEOPLE[".$val."]=\"" . $key . "\";"
+		print $fh "PEOPLE[".$val."]=" . $json->encode($key) . ";"
 		  if int($val) > 0;
 	}
 	print $fh "var MOVIES=[];";
