@@ -474,7 +474,13 @@ var GRAPH = [
 					scales: {
 						xAxes: [{
 							ticks: {
-								beginAtZero: true
+								beginAtZero: true,
+								callback: function(value, index, values) {
+									if (value >= 1000000)
+										return '$' + Math.round(value / 1000000) + 'M';
+									else
+										return '$' + value;
+								}
 							}
 						}]
 					}
@@ -537,7 +543,10 @@ var GRAPH = [
 					scales: {
 						xAxes: [{
 							ticks: {
-								beginAtZero: true
+								beginAtZero: true,
+								callback: function(value, index, values) {
+									return value + '%';
+								}
 							}
 						}]
 					}
@@ -600,7 +609,10 @@ var GRAPH = [
 					scales: {
 						xAxes: [{
 							ticks: {
-								beginAtZero: true
+								beginAtZero: false,
+								callback: function(value, index, values) {
+									return value + '%';
+								}
 							}
 						}]
 					}
