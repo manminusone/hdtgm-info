@@ -268,7 +268,7 @@ var GRAPH = [
 				},
 				options: {
 					legend: { display: false }, 
-					title: { display: true, text: "Movies grouped by decade", fontSize: 14 },
+					title: { display: true, text: "Movies grouped by release year", fontSize: 14 },
 					tooltips: {
 						callbacks: {
 							label: function(tooltipItem, data) {
