@@ -474,10 +474,10 @@ var GRAPH = [
 					scales: {
 						xAxes: [{
 							ticks: {
-								beginAtZero: true,
+								beginAtZero: false,
 								callback: function(value, index, values) {
 									if (value >= 1000000)
-										return '$' + String(value / 1000000) + 'M';
+										return '$' + Math.round(value / 1000000) + 'M';
 									else
 										return '$' + value;
 								}
@@ -609,7 +609,11 @@ var GRAPH = [
 					scales: {
 						xAxes: [{
 							ticks: {
+<<<<<<< HEAD
 								beginAtZero: true,
+=======
+								beginAtZero: false,
+>>>>>>> 1e45ea0fa0ff0058e3e37369e9a79f94a324bbf4
 								callback: function(value, index, values) {
 									return value + '%';
 								}
