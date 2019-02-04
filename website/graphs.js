@@ -609,11 +609,7 @@ var GRAPH = [
 					scales: {
 						xAxes: [{
 							ticks: {
-<<<<<<< HEAD
 								beginAtZero: true,
-=======
-								beginAtZero: false,
->>>>>>> 1e45ea0fa0ff0058e3e37369e9a79f94a324bbf4
 								callback: function(value, index, values) {
 									return value + '%';
 								}
