@@ -4,12 +4,13 @@
 
 use strict;
 
-use LWP::Simple;
+use LWP::UserAgent;
 use Data::Dumper;
 use URI::Escape;
 use Getopt::Std;
 use JSON;
 use Date::Format;
+use Carp;
 
 binmode STDOUT, ":encoding(UTF-8)";  # might get UTF-8 data
 
@@ -34,6 +35,10 @@ Usage: generate.pl [ -c ] [ -t ] [ -j ] [ -a ] [ -m ##### ] [ -h ]
 
 FOO
 
+my $ua = LWP::UserAgent->new( cookie_jar => {} );
+
+$| = 1;
+
 ###
 ### cache.pl contains a number of variables related to the gathered data, and is saved
 ### periodically so that the program won't have to re-request data that it already has
@@ -43,7 +48,7 @@ sub read_cache {
 	return if ! -e 'cache.pl';
 	my $code = '';
 	my $fh;
-	open $fh, '<', 'cache.pl' or die $!;
+	open $fh, '<', 'cache.pl' or croak $!;
 	binmode $fh, ":encoding(UTF-8)";
 	$code = join('',<$fh>);
 	close $fh;
@@ -53,7 +58,7 @@ sub read_cache {
 
 sub write_cache {
 	my $fh;
-	open $fh, '>', 'cache.pl' or die $!;
+	open $fh, '>', 'cache.pl' or croak $!;
 	binmode $fh, ":encoding(UTF-8)";
 	print $fh <<'HDR';
 # cache.pl -- machine-generated file of cached values
@@ -127,12 +132,15 @@ sub get_remote_html {
 	my $fh;
 
 	if (-e 'remote-html.txt' && -M 'remote-html.txt' < 7) { # can have recently retrieved file cached on local disk
-		open $fh, '<', 'remote-html.txt' or die $!;
+		open $fh, '<', 'remote-html.txt' or croak $!;
 		$txt = join('',<$fh>);
 		close $fh;
 	} else {
-		$txt = get "http://www.earwolf.com/alleps-ajax.php?show=2682"; 
-		open $fh, '>', 'remote-html.txt' or die $!;
+		my $resp = $ua->get("http://www.earwolf.com/alleps-ajax.php?show=2682");
+		croak $resp->status_line unless $resp->is_success;
+		$txt = $resp->decoded_content; 
+		open $fh, '>', 'remote-html.txt' or croak $!;
+		binmode $fh, ':utf8';
 		print $fh $txt;
 		close $fh;
 	}
@@ -140,11 +148,11 @@ sub get_remote_html {
 		$movie = ''; @currentlist = (); 
 		my $l = $1;
 		next if $l =~ m{Minisode}  # skip mini episodes
-         || $l =~ m{Ep #\d+\.}     # skip other in-between episodes
-		 || $l =~ m{Ep #\D}        # skip non-numbered episodes
+         || $l =~ m{Ep \x23\d+\.}     # skip other in-between episodes
+		 || $l =~ m{Ep \x23\D}        # skip non-numbered episodes
 		 ;
 
-		if ($l =~ m{Ep #(\d+)}) { $num = $1; $LIVECACHE[$num] = 0; }
+		if ($l =~ m{Ep \x23(\d+)}) { $num = $1; $LIVECACHE[$num] = 0; }
 		if ($l =~ m{<a href=".+">(.+)</a>}) {
 			$movie = $1;
 			if ($movie =~ m{\s+\(.+\)$}) { $movie = $`; }
@@ -152,11 +160,10 @@ sub get_remote_html {
 			push @currentlist, $movie;
 		} else { warn "no movie found in this line: $l" }
 		while ($l =~ m{<span>([^<]+)</span>}g) { push @currentlist, $1; }
-		#printf("%3d : %s\n", $num,join(' / ', @currentlist));
 		$MOVIELIST[$num] = [ @currentlist ];
 	}
-	open $fh, '>', 'data.csv' or die $!;
-	binmode $fh, ":encoding(UTF-8)";
+	open $fh, '>', 'data.csv' or croak $!;
+	binmode $fh, ":utf8";
 	for (my $iter = 1; $iter < scalar @MOVIELIST; ++$iter) {
 		printf $fh "%s\n", join("\t", ($iter, @{$MOVIELIST[$iter]}));
 	}
@@ -184,23 +191,21 @@ sub uniq {
 
 sub parse_csv {
 	my $fh;
-	open $fh, '<', 'data.csv' or die $!;
-	binmode $fh, ":encoding(UTF-8)";
+	open $fh, '<', 'data.csv' or croak $!;
+	binmode $fh, ":utf8";
 	while (! eof $fh) {
 		chomp(my $line = <$fh>);
 		my @field = split(/\t/, $line);
 		my $num = shift @field;
 		my $title = shift @field;
 		$title = clean_title($title);
-		next if $title =~ m{Howdies};
+		next if $title =~ m{Howdies};  # special episode recognition
 		next if $title eq 'Zardoz 2';
 		printf("%3d . %s\n", $num, $title);
 		my $m = get_movie($title, $YEARCACHE{$title});
-		#print Dumper($m); exit 0;
 		$SHOWCACHE[$num] = $m->{id};
 		if (! $m->{cast}) {
 			my $tmp = get_movie_details($m->{id});
-			#$m->{cast} = $tmp->{cast};
 			$m->{$_} = $tmp->{$_} foreach keys %$tmp;
 
 		}
@@ -220,24 +225,15 @@ sub parse_csv {
 	close $fh;
 }
 
-##
-## an attempt to prevent the requests from blowing through the API request limit
-## 
 
-my($recentReqs) = 0;
-
-sub throttled_get {  # a call to get() with pauses inserted every few requests, due to API limitations
+sub throttled_get {  # a call to get() with header checking for throttling
 	my($url) = @_;
-	#print "\t$recentReqs\n$url\n"; exit 0;
-	my $result = get $url;
-	++$recentReqs;
-	if ($recentReqs >= 40) {  ## just sleep for a timeout period
-		print "timeout limit reached, sleeping\n";
-		sleep 10;
-		$recentReqs = 0;
-	}
-	if ($result eq '') { write_cache();  die "didn't get content!\n\$url = $url\n"; }
-	return $result;
+	my($resp) = $ua->get($url);
+	croak $resp->status_line unless $resp->is_success;
+
+	# current rate limit is 40 requests every 10 secs. 
+	if ($resp->header('X-RateLimit') < 30) { sleep 1; }
+	return $resp->decoded_content;
 }
 
 ##
@@ -332,6 +328,7 @@ sub get_movie {
 			warn "Couldn't look up movie $title: $@";
 			return undef;
 		}
+		#print Dumper($j); exit 0;
 
 		if ($j->{total_results} == 0) {
 			warn "No results from searching for $title";
@@ -342,30 +339,40 @@ sub get_movie {
 			$MOVIECACHE{$title} = data_subset($t);
 			return $MOVIECACHE{$title};
 		} else {
+			my(@results) = ();
+			push @results, $_ foreach @{$j->{results}};
+			while ($j->{total_pages} > 1 && $j->{page} < $j->{total_pages}) {
+				print "Retrieving page " . ($j->{page} + 1) . " of $j->{total_pages}\n";
+				my $urlplus = $url . "&page=" . ($j->{page} + 1);
+				$result = throttled_get $urlplus;
+				eval { $j = decode_json $result; };
+				if ($@) {
+					warn "Couldn't look up movie title: $@";
+					return undef;
+				}
+				push @results, $_ foreach @{$j->{results}};
+			}
+
+			if (scalar @results > 25 && ! $year) {
+				print "Search results returned " . scalar(@results). " potential titles for '$title'.\n";
+				print "Enter the year for this movie to filter out incorrect titles (just hit Enter to skip): ";
+				chomp(my $in = <STDIN>);
+				if ($in > 1900) { $year = $in; }
+			}
+
 			if ($year) { # return specific item from specific year
-				my $count = 0; my $last = undef;
-				foreach my $i (@{$j->{results}}) {
-					if (compare_titles($i->{title}, $title) && substr($i->{release_date},0,4) == $year) {
-						$MOVIECACHE{$title} = data_subset($i);
-						return $MOVIECACHE{$title};
-					} elsif (substr($i->{release_date},0,4) == $year) {
-						++$count; $last = $i;
-					}
-				}
-				if ($count == 1) {
-					$MOVIECACHE{$title} = data_subset($last);
-					return $MOVIECACHE{$title};
-				}
+				@results = grep { substr($_->{release_date},0,4) == $year } @results;
 			}
 
 			# check for one record with exact title
 			my $located = 0; my $last = undef;
-			foreach my $i (@{$j->{results}}) {
+			foreach my $i (@results) {
 				if (compare_titles($i->{title}, $title)) { # Case insensitive compare
 					++$located; $last = $i;
 				}
 			}
 			if ($located == 1) {
+				print "Found exactly 1 matching movie.\n";
 				$MOVIECACHE{$title} = data_subset($last);
 				return $MOVIECACHE{$title};
 			}
@@ -386,14 +393,7 @@ sub get_movie {
 				$YEARCACHE{$title} = $yearcache[$in];
 				print "Selecting ".$MOVIECACHE{$title}->{title} . " (" . $yearcache[$in] . ")\n";
 				return $MOVIECACHE{$title};
-			} else { die "aborting."}
-			#foreach my $r (@{$j->{results}}) {
-			#	$r->{release_date} =~ m{(\d\d\d\d)};
-			#	print "\t- " . $r->{title} . ' ('.$1.")\n";
-			#}
-			#print "Add an appropriate entry in the \%YEARCACHE variable in cache.pl to resolve this ambiguation:\n\n\t'$title' => 2010,  # or whatever\n\n";
-			#write_cache();
-			#exit 0;
+			} else { croak "aborting."}
 		}
 	}
 }
@@ -472,7 +472,7 @@ sub save_js {
 			live => $LIVECACHE[$iter],
 		};
 	}
-	open my $fh, '>', 'hdtgm-data.js' or die $!;
+	open my $fh, '>', 'hdtgm-data.js' or croak $!;
 	binmode $fh, ":encoding(UTF-8)";
 	print $fh "var generateDate = '" .time2str("%C",time). "';\n\n";
 	print $fh "var SHOWS = " .
@@ -495,7 +495,7 @@ sub save_js {
 
 	close $fh;
 	$json->pretty(0);
-	open $fh, '>', 'hdtgm-data.min.js' or die $!;
+	open $fh, '>', 'hdtgm-data.min.js' or croak $!;
 	binmode $fh, ":encoding(UTF-8)";
 	print $fh "var generateDate='" .time2str("%C",time). "';";
 	print $fh "var SHOWS=" .
