@@ -3,6 +3,8 @@
 
 This repo generates a set of files that can be used to serve a static website. The data for these files is taken from various sources, and is specific to movies that have been reviewed on the podcast "How Did This Get Made?"
 
+The site is currently hosted at https://hdtgm.info/ so you should go check that out for the resulting information and graphs.
+
 ### Configuring the build script
 
 There's one Perl script that loads the current list of episodes from the HDTGM website and generates a JavaScript file of data for the site. The script grabs content from the API of [www.themoviedb.org](http://www.themoviedb.org/), so if you want to run this script on your own site, you will have to create an account, log in, and create an API key to use in the script.
