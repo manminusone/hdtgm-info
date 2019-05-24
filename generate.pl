@@ -221,6 +221,7 @@ sub parse_csv {
 				}
 		}
 		$GUESTCACHE[$num] = uniq($GUESTCACHE[$num]);
+		write_cache();
 	}
 	close $fh;
 }
@@ -393,7 +394,7 @@ sub get_movie {
 				$YEARCACHE{$title} = $yearcache[$in];
 				print "Selecting ".$MOVIECACHE{$title}->{title} . " (" . $yearcache[$in] . ")\n";
 				return $MOVIECACHE{$title};
-			} else { croak "aborting."}
+			} else { write_cache(); croak "aborting."}
 		}
 	}
 }
@@ -527,7 +528,7 @@ sub save_js {
 our($opt_t,$opt_j,$opt_a,$opt_h,$opt_c,$opt_m);
 getopts('tjahcm:');
 
-if ($opt_h || ! ($opt_t || $opt_j || $opt_a || $opt_m)) {
+if ($opt_h || ! ($opt_t || $opt_j || $opt_a || $opt_m || $opt_c)) {
 	print $HELPTEXT;
 	exit 0;
 }
