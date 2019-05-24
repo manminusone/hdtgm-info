@@ -189,11 +189,14 @@ sub uniq {
 ## read the previously generated CSV file 
 ## 
 
+my $changed = 0;
+
 sub parse_csv {
 	my $fh;
 	open $fh, '<', 'data.csv' or croak $!;
 	binmode $fh, ":utf8";
 	while (! eof $fh) {
+		$changed = 0;
 		chomp(my $line = <$fh>);
 		my @field = split(/\t/, $line);
 		my $num = shift @field;
@@ -221,7 +224,7 @@ sub parse_csv {
 				}
 		}
 		$GUESTCACHE[$num] = uniq($GUESTCACHE[$num]);
-		write_cache();
+		write_cache() if $changed;
 	}
 	close $fh;
 }
@@ -316,6 +319,7 @@ sub get_movie {
 	if ($MOVIECACHE{$title}) {
 		return $MOVIECACHE{$title};
 	} else {
+		$changed = 1; # need to write the cache after this code 
 
 		my $url = 'https://api.themoviedb.org/3/search/movie?'.
 			'api_key='.$THEMOVIEDB_APIKEY.'&'.
