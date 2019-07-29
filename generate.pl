@@ -11,6 +11,8 @@ use Getopt::Std;
 use JSON;
 use Date::Format;
 use Carp;
+use HTML::Parser ();
+use URI::URL;
 
 binmode STDOUT, ":encoding(UTF-8)";  # might get UTF-8 data
 
@@ -38,6 +40,58 @@ FOO
 my $ua = LWP::UserAgent->new( cookie_jar => {} );
 
 $| = 1;
+
+
+###
+### Parsing HTML retrieved from earwolf site.
+### The objective is to get the show description,
+### which might have a year for the film. (This started
+### regularly after around show 120.)
+###
+
+my(%PARSEVAR) = ();
+
+my $hp = HTML::Parser->new(
+	start_h => [ sub {
+		my($tagname,$attr) = @_;
+		if ($tagname eq 'div' && $attr->{class} eq 'episodeshowdesc') {
+			$PARSEVAR{capture} = 1;
+		} elsif ($PARSEVAR{capture} && $tagname eq 'p' && ! $PARSEVAR{data}) {
+			$PARSEVAR{para} = 1;
+		}
+		}, 'tagname,attr' 
+		],
+	end_h => [ sub { 
+		my($tagname) = @_;
+		$PARSEVAR{para} = 0 if $tagname eq 'p';
+		$PARSEVAR{capture} = 0 if $tagname eq 'div';
+		}, 'tagname'
+		],
+	text_h => [ sub {
+		my($text) = @_;
+		if ($PARSEVAR{capture} && $PARSEVAR{para}) {
+			$PARSEVAR{data} .= $text;
+		}
+		}, 'text'
+		],
+	);
+
+sub find_desc {
+	my($uri) = @_;
+	my $u = URI::URL->new($uri, 'http://www.earwolf.com/');
+	my $descresp = $ua->get($u->abs);
+
+	%PARSEVAR = ();
+	$hp->parse($descresp->decoded_content);
+	return $PARSEVAR{data};
+}
+
+#open FIL, '<', 'temp.html' or die $!;
+#my $txt = join('', <FIL>);
+#close FIL;
+#$hp->parse($txt);
+#exit 0;
+
 
 ###
 ### cache.pl contains a number of variables related to the gathered data, and is saved
@@ -153,11 +207,17 @@ sub get_remote_html {
 		 ;
 
 		if ($l =~ m{Ep \x23(\d+)}) { $num = $1; $LIVECACHE[$num] = 0; }
-		if ($l =~ m{<a href=".+">(.+)</a>}) {
-			$movie = $1;
+		if ($l =~ m{<a href="(.+)">(.+)</a>}) {
+			print "\t1 = $1, 2 = $2\n";
+			my $uri = $1;
+			$movie = $2;
+
 			if ($movie =~ m{\s+\(.+\)$}) { $movie = $`; }
 			if ($movie =~ m{:? LIVE}) { $LIVECACHE[$num] = 1; $movie = $`; }
 			push @currentlist, $movie;
+
+			push @currentlist, find_desc($uri);
+
 		} else { warn "no movie found in this line: $l" }
 		while ($l =~ m{<span>([^<]+)</span>}g) { push @currentlist, $1; }
 		$MOVIELIST[$num] = [ @currentlist ];
@@ -168,6 +228,7 @@ sub get_remote_html {
 		printf $fh "%s\n", join("\t", ($iter, @{$MOVIELIST[$iter]}));
 	}
 	close $fh;
+	exit 0;
 }
 
 ## 
@@ -201,11 +262,29 @@ sub parse_csv {
 		my @field = split(/\t/, $line);
 		my $num = shift @field;
 		my $title = shift @field;
+		my $desc = shift @field; 
+		$desc =~ s{&\x23821(6|7);}{'}g;
+		$desc =~ s{&\x23822(0|1);}{"}g;
+		$desc =~ s{&\x238230;}{...}g;
+		$desc =~ s{&\x238211;}{-}g;
+
 		$title = clean_title($title);
 		next if $title =~ m{Howdies};  # special episode recognition
 		next if $title eq 'Zardoz 2';
 		printf("%3d . %s\n", $num, $title);
-		my $m = get_movie($title, $YEARCACHE{$title});
+		#printf("%3d . %s\n%s\n\n", $num, $title, $desc); exit 0;
+
+		my($foundyear) = undef;
+		if ($desc =~ m{\b((19|20)\d\d)\b}) { $foundyear = $1; print "\tfound year $foundyear in show description\n"; }
+
+
+		my $m = get_movie($title, $YEARCACHE{$title} || $foundyear);
+
+		if ($m eq undef && $foundyear ne '') {
+			print "No movie found with specified date, checking plain title\n";
+			$m = get_movie($title);
+		}
+
 		$SHOWCACHE[$num] = $m->{id};
 		if (! $m->{cast}) {
 			my $tmp = get_movie_details($m->{id});
@@ -567,7 +646,7 @@ if ($opt_m) {
 }
 
 if ($opt_t || $opt_a || ($opt_j && ! -e 'data.csv')) {
-	get_remote_html();
+	get_remote_html() if ! -f 'data.csv' or -M 'remote-html.txt' < -M 'data.csv';
 	parse_csv();
 }
 
