@@ -297,6 +297,81 @@ var GRAPH = [
 		}
 	},
 	{
+		"title": "Guest hosts on covered movies",
+		"id": "guests-in-movies",
+		"graphType": "people-list",
+		"prepFn": function() {
+			var HOST = Array();
+			var mcount = Array();
+			var tooltipArray = Array();
+			for (var n = 1; n < SHOWS.length; ++n)
+				if (SHOWS[n] != null)
+					for (var j in SHOWS[n].guests)
+						HOST[SHOWS[n].guests[j]] = 1;
+			for (var n = 1; n < SHOWS.length; ++n)
+				if (SHOWS[n] != null && SHOWS[n].movie != null) {
+					var cass = MOVIES[SHOWS[n].movie].cast;
+					for (var j in cass) {
+						if (HOST[cass[j]]) {
+							mcount[cass[j]] = isNaN(mcount[cass[j]]) ? 1 : mcount[cass[j]] + 1;
+							if (! tooltipArray[cass[j]]) tooltipArray[cass[j]] = Array();
+							tooltipArray[cass[j]].push(MOVIES[SHOWS[n].movie].title);
+						}
+					}
+				}
+			var objArray = Array();
+			for (n = 0, tmpArray = Object.keys(mcount); n < tmpArray.length; ++n)
+				objArray.push( { id: tmpArray[n], value: mcount[tmpArray[n]], name: PEOPLE[tmpArray[n]] || tmpArray[n] });
+			objArray.sort(BAVALUE);
+			var labelArray = Array(), personIdArray = Array(), valueArray= Array();
+			for (var i = 0; i < 25; ++i) {
+				if (objArray[i].value > 1) {
+					labelArray[i] = objArray[i].name;
+					valueArray[i] = objArray[i].value;
+					personIdArray[i] = objArray[i].id;
+				}
+			}
+			return {
+				type: 'horizontalBar',
+				data: {
+					datasets: [{
+						label: "Guests who have been in movies",
+						data: valueArray,
+						backgroundColor: COLOR25,
+						datalabels: {
+							display: false
+						}
+					}],
+					labels: labelArray
+				},
+				options: {
+					legend: { display: false }, 
+					title: { display: true, text: "Guests who have been in movies", fontSize: 14 },
+					tooltips: {
+						position: 'atMouse',
+						callbacks: {
+							label: function(tooltipItem, data) {
+								var num = tooltipItem.index;
+								return tooltipArray[personIdArray[num]];
+							}
+						}
+					},
+					scales: {
+						xAxes: [{
+							ticks: {
+								beginAtZero: true,
+								callback: function(value, index, values) {
+									return (Math.round(value) == value ? value : '');
+								}
+							}
+						}]
+					}
+				}
+			};
+
+		}
+	},
+	{
 		"title": "Stars in most movies",
 		"id": "people-rank",
 		"graphType": "people-list",
