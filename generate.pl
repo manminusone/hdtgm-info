@@ -222,6 +222,7 @@ sub get_remote_html {
 		while ($l =~ m{<span>([^<]+)</span>}g) { push @currentlist, $1; }
 		$MOVIELIST[$num] = [ @currentlist ];
 	}
+	write_cache();
 	open $fh, '>', 'data.csv' or croak $!;
 	binmode $fh, ":utf8";
 	for (my $iter = 1; $iter < scalar @MOVIELIST; ++$iter) {
