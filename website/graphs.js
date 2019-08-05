@@ -268,7 +268,7 @@ var GRAPH = [
 				},
 				options: {
 					legend: { display: false }, 
-					title: { display: true, text: "Movies grouped by decade", fontSize: 14 },
+					title: { display: true, text: "Movies grouped by release year", fontSize: 14 },
 					tooltips: {
 						callbacks: {
 							label: function(tooltipItem, data) {
@@ -474,7 +474,13 @@ var GRAPH = [
 					scales: {
 						xAxes: [{
 							ticks: {
-								beginAtZero: true
+								beginAtZero: true,
+								callback: function(value, index, values) {
+									if (value >= 1000000)
+										return '$' + String(value / 1000000) + 'M';
+									else
+										return '$' + value;
+								}
 							}
 						}]
 					}
@@ -537,7 +543,10 @@ var GRAPH = [
 					scales: {
 						xAxes: [{
 							ticks: {
-								beginAtZero: true
+								beginAtZero: true,
+								callback: function(value, index, values) {
+									return value + '%';
+								}
 							}
 						}]
 					}
@@ -600,7 +609,10 @@ var GRAPH = [
 					scales: {
 						xAxes: [{
 							ticks: {
-								beginAtZero: true
+								beginAtZero: true,
+								callback: function(value, index, values) {
+									return value + '%';
+								}
 							}
 						}]
 					}
