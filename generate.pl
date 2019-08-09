@@ -24,6 +24,7 @@ my(%PERSONCACHE) = ();         # name => ID
 my(@GUESTCACHE) = ();          # show # => guest ID
 my(@SHOWCACHE) = ();           # show # => movie ID
 my(@LIVECACHE) = ();           # show # => bool
+my(%VENUECACHE) = ();          # venue ID string => venue details
 
 my $HELPTEXT = <<FOO;
 Usage: generate.pl [ -c ] [ -t ] [ -j ] [ -a ] [ -m ##### ] [ -h ]
@@ -33,6 +34,7 @@ Usage: generate.pl [ -c ] [ -t ] [ -j ] [ -a ] [ -m ##### ] [ -h ]
   -j  generate end Javascript
   -a  do all steps
   -m  do a lookup for a specific movie title
+  -l  look at live shows and determine their locations
   -h  print this message
 
 FOO
@@ -166,6 +168,12 @@ MID
 
 MID
 	print $fh Data::Dumper->Dump( [ \@LIVECACHE ], [ '*LIVECACHE' ]);
+	print $fh <<'MID';
+
+# %VENUECACHE -- details on live venues
+
+MID
+	print $fh Data::Dumper->Dump( [ \%VENUECACHE ], [ '*VENUECACHE' ]);
 	print $fh <<'FTR';
 
 1;
@@ -569,7 +577,11 @@ sub save_js {
 		$OUTPUT[$iter] = {
 			movie => $SHOWCACHE[$iter],
 			guests => $GUESTCACHE[$iter],
-			live => $LIVECACHE[$iter],
+			live => $LIVECACHE[$iter] ne '0',
+			venue => $LIVECACHE[$iter] ne '0' && exists $VENUECACHE{$LIVECACHE[$iter]} ? $VENUECACHE{$LIVECACHE[$iter]}->{name} : '',
+			city => $LIVECACHE[$iter] ne '0' && exists $VENUECACHE{$LIVECACHE[$iter]} ? $VENUECACHE{$LIVECACHE[$iter]}->{city} : '',
+			state => $LIVECACHE[$iter] ne '0' && exists $VENUECACHE{$LIVECACHE[$iter]} ? $VENUECACHE{$LIVECACHE[$iter]}->{state} : '',
+
 		};
 	}
 	open my $fh, '>', 'hdtgm-data.js' or croak $!;
@@ -592,6 +604,7 @@ sub save_js {
 	}
 	print $fh "\nvar GENRES = [];\n";
 	foreach my $k (keys %GENRECACHE) { printf($fh "GENRES.push({ 'id': %d, 'label': '%s'});\n", $k, $GENRECACHE{$k}); }
+
 
 	close $fh;
 	$json->pretty(0);
@@ -624,10 +637,10 @@ sub save_js {
 ### MAIN CODE
 ###
 
-our($opt_t,$opt_j,$opt_a,$opt_h,$opt_c,$opt_m);
-getopts('tjahcm:');
+our($opt_t,$opt_j,$opt_a,$opt_h,$opt_c,$opt_l,$opt_m);
+getopts('tjahclm:');
 
-if ($opt_h || ! ($opt_t || $opt_j || $opt_a || $opt_m || $opt_c)) {
+if ($opt_h || ! ($opt_t || $opt_j || $opt_a || $opt_m || $opt_c || $opt_l)) {
 	print $HELPTEXT;
 	exit 0;
 }
@@ -643,6 +656,35 @@ if ($opt_c) {
 }
 
 read_cache();
+
+
+if ($opt_l) {
+	open FIL, '<', 'data.csv' or croak $!;
+
+	while (! eof FIL) {
+		my $line = <FIL>; $line =~ s{\s+$}{};
+		my(@field) = split(/\t/,$line);
+		next unless $LIVECACHE[$field[0]];
+		#print "\t$LIVECACHE[$field[0]]\n";
+		next if exists $VENUECACHE{$LIVECACHE[$field[0]]};
+
+		#print Dumper(\@field); exit 0;
+		if ($field[2] =~ m{live (from|at|in) (.+?)[\!\.\,]}i) {
+			my $venue_txt = $2;
+			print "$field[0]\t$venue_txt\n";
+			foreach my $k (keys %VENUECACHE) {
+				if (index($venue_txt, $k) > -1) {
+					$LIVECACHE[$field[0]] = $k;
+					last;
+				}
+			}
+		} else { print "Unknown line for number $field[0] : $field[2]\n"; }
+	}
+	close FIL;
+	write_cache();
+	print "done.\n";
+	exit 0;
+}
 
 if ($THEMOVIEDB_APIKEY eq '') {
 	warn "You need to provide the API key in cache.pl. See docs for details.\n";

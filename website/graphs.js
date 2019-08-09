@@ -8,6 +8,7 @@ Chart.Tooltip.positioners.atMouse = function(elements, eventPosition) {
 
 var GRAPHCACHE = Array();
 var COLOR25 = [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ]; 
+var PIE25 = ['#00cc33','#00bc6c','#00a944','#0093ad','#007cb3','#0064a6','#004b8a','#333366', '#004c8a','#0067a4','#0080ab','#00989e','#00ad7f','#00bf53','#81cc08', '#00c851','#00bf83','#00b4b0','#00a5d1','#0094e2','#0080e0','#0a68cc', '#1859ac','#1d4a8d','#1d3b6f','#1b2e53','#172038','#11141f','#000000'  ]; 
 var ABVALUE = function(a,b){ return a.value - b.value; };
 var BAVALUE = function(a,b){ return b.value - a.value; };
 
@@ -33,6 +34,62 @@ function showGraph(which) {
 }
 
 var GRAPH = [
+	{
+		"id" : "live-city",
+		"graphType": "misc-list",
+		"title": "Cities hosting live shows",
+		"prepFn": function() {
+			var sortMe = Array();
+			var tally = Array();
+
+			for (var m = 1; m < SHOWS.length; ++m)
+				if (SHOWS[m].live == 1)
+					tally[SHOWS[m].city + ', ' + SHOWS[m].state] = isNaN(tally[SHOWS[m].city + ', ' + SHOWS[m].state]) ? 1 : tally[SHOWS[m].city + ', ' + SHOWS[m].state] + 1;
+			var okeys = Object.keys(tally);
+			for (let k of okeys)
+				sortMe.push({ 'label': k, 'value': tally[k]});
+			sortMe.sort(BAVALUE);
+			var labelArray = Array(), valueArray= Array();
+			var grandTot = 0;
+			for (var n = 0; n < sortMe.length; ++n) {
+				labelArray.push(sortMe[n].label);
+				valueArray.push(sortMe[n].value);
+				grandTot += sortMe[n].value;
+			}
+			return {
+	 			type: 'pie',
+	 			data: {
+	 				datasets: [{
+	 					label: "Cities hosting live shows",
+	 					data: valueArray,
+	 					backgroundColor: PIE25,
+	 					datalabels: {
+	 						formatter: function(value, context) {
+    							return ''; // value + ' (' + Math.round((value / grandTot) * 100) + '%)';
+							}
+	 					}
+	 				}] ,
+	 				labels: labelArray
+	 			},
+	 			options: {
+	 				legend: {
+	 					position: 'left'
+	 				},
+	 				tooltips: {
+	 					callbacks: {
+	 						label: function(tooltipItem, data) {
+	 							// console.log(tooltipItem);
+	 							// console.log(data);
+	 							var thisnum = data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index];
+	 							return [ labelArray[tooltipItem.index] , thisnum + ' shows (' + Math.round((thisnum / grandTot) * 100) + '%)' ];
+	 						}
+	 					}
+	 				},
+					title: { display: true, text: "Cities hosting live shows", fontSize: 14 },
+	 			}
+	 		};
+		}
+	},
 	{
 		"id" : "live-shows",
 		"graphType": "misc-list",
