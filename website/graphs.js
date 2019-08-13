@@ -8,7 +8,7 @@ Chart.Tooltip.positioners.atMouse = function(elements, eventPosition) {
 
 var GRAPHCACHE = Array();
 var COLOR25 = [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ]; 
-var PIE25 = ['#00cc33','#00bc6c','#00a944','#0093ad','#007cb3','#0064a6','#004b8a','#333366', '#004c8a','#0067a4','#0080ab','#00989e','#00ad7f','#00bf53','#81cc08', '#00c851','#00bf83','#00b4b0','#00a5d1','#0094e2','#0080e0','#0a68cc', '#1859ac','#1d4a8d','#1d3b6f','#1b2e53','#172038','#11141f','#000000'  ]; 
+var PIE25 = [ '#00813e','#007a64','#007184','#00669b','#0059a3','#00489b','2e3385',  '#80328e','#c12d85','#f23c6f','#ff654f','#ff9724','#ffcc00','#e2ff03', '#c8df23','#aebf2f','#94a135','#7c8438','#636738','#4b4c36','#333333', '#4a3633','#603833','#753a34','#8b3a34' ]; 
 var ABVALUE = function(a,b){ return a.value - b.value; };
 var BAVALUE = function(a,b){ return b.value - a.value; };
 
@@ -81,7 +81,7 @@ var GRAPH = [
 	 							// console.log(tooltipItem);
 	 							// console.log(data);
 	 							var thisnum = data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index];
-	 							return [ labelArray[tooltipItem.index] , thisnum + ' shows (' + Math.round((thisnum / grandTot) * 100) + '%)' ];
+	 							return [ labelArray[tooltipItem.index] , thisnum + ' show' + (thisnum != 1 ? 's' : '') + ' (' + Math.round((thisnum / grandTot) * 100) + '%)' ];
 	 						}
 	 					}
 	 				},
