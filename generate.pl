@@ -109,7 +109,7 @@ sub read_cache {
 	$code = join('',<$fh>);
 	close $fh;
 	eval $code;
-	warn $@ if $@;
+	croak $@ if $@;
 }
 
 sub write_cache {
