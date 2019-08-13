@@ -561,6 +561,69 @@ var GRAPH = [
 		}
 	},
 	{
+		"title": "Least expensive movies",
+		"id": "movie-budget-least",
+		"graphType": "movies-list",
+		"prepFn": function() {
+			var sortArray = Array();
+			for (var iter = 1; iter < SHOWS.length; ++iter) {
+				if (! SHOWS[iter]) continue;
+				if (! SHOWS[iter].movie) continue;
+				if (MOVIES[SHOWS[iter].movie].budget == 0) continue;
+				
+				sortArray.push({ id: SHOWS[iter].movie, value: MOVIES[SHOWS[iter].movie].budget });
+			}
+			sortArray.sort(ABVALUE);
+			var labelArray = Array(), movieIdArray = Array(), valueArray = Array();
+			for (var i = 0; i < 25; ++i) {
+				labelArray[i] = MOVIES[sortArray[i].id].title;
+				valueArray[i] = sortArray[i].value;
+				movieIdArray[i] = sortArray[i].id;
+			}
+			return {
+				type: 'horizontalBar',
+				data: {
+					datasets: [{
+						label: "The least expensive movies",
+						data: valueArray,
+						backgroundColor: COLOR25,
+						datalabels: {
+							display: false
+						}
+					}],
+					labels: labelArray
+				},
+				options: {
+					legend: { display: false }, 
+					title: { display: true, text: "The least expensive movies", fontSize: 14 },
+					tooltips: {
+						position: 'atMouse',
+						callbacks: {
+							label: function(tooltipItem, data) {
+								var dollars = tooltipItem.xLabel;
+								return '$' + dollars.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
+							}
+						}
+					},
+					scales: {
+						xAxes: [{
+							ticks: {
+								beginAtZero: true,
+								callback: function(value, index, values) {
+									if (value >= 1000000)
+										return '$' + Math.round(value / 1000000) + 'M';
+									else
+										return '$' + value;
+								}
+							}
+						}]
+					}
+				}
+			};
+
+		}
+	},
+	{
 		"title": "Most expensive movies",
 		"id": "movie-budget",
 		"graphType": "movies-list",
