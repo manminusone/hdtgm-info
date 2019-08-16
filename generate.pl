@@ -13,6 +13,7 @@ use Date::Format;
 use Carp;
 use HTML::Parser ();
 use URI::URL;
+use Date::Parse;
 
 binmode STDOUT, ":encoding(UTF-8)";  # might get UTF-8 data
 
@@ -58,6 +59,8 @@ my $hp = HTML::Parser->new(
 		my($tagname,$attr) = @_;
 		if ($tagname eq 'div' && $attr->{class} eq 'episodeshowdesc') {
 			$PARSEVAR{capture} = 1;
+		} elsif ($tagname eq 'span' && $attr->{class} eq 'epidate') {
+			$PARSEVAR{capturedate} = 1;
 		} elsif ($PARSEVAR{capture} && $tagname eq 'p' && ! $PARSEVAR{data}) {
 			$PARSEVAR{para} = 1;
 		}
@@ -67,12 +70,16 @@ my $hp = HTML::Parser->new(
 		my($tagname) = @_;
 		$PARSEVAR{para} = 0 if $tagname eq 'p';
 		$PARSEVAR{capture} = 0 if $tagname eq 'div';
+		$PARSEVAR{capturedate} = 0 if $tagname eq 'span';
 		}, 'tagname'
 		],
 	text_h => [ sub {
 		my($text) = @_;
 		if ($PARSEVAR{capture} && $PARSEVAR{para}) {
 			$PARSEVAR{data} .= $text;
+		}
+		if ($PARSEVAR{capturedate}) {
+			$PARSEVAR{date} = $text;
 		}
 		}, 'text'
 		],
@@ -85,7 +92,7 @@ sub find_desc {
 
 	%PARSEVAR = ();
 	$hp->parse($descresp->decoded_content);
-	return $PARSEVAR{data};
+	return ($PARSEVAR{data}, $PARSEVAR{date});
 }
 
 #open FIL, '<', 'temp.html' or die $!;
@@ -272,6 +279,13 @@ sub parse_csv {
 		my $num = shift @field;
 		my $title = shift @field;
 		my $desc = shift @field; 
+		my $epdate = shift @field;
+
+		my(@TMPDATE) = strptime($epdate);
+		if ($TMPDATE[5] > 0) {
+			$epdate = sprintf("%04d-%02d-%02d", $TMPDATE[5] + 1900, $TMPDATE[4] + 1, $TMPDATE[3]);
+		}
+
 		$desc =~ s{&\x23821(6|7);}{'}g;
 		$desc =~ s{&\x23822(0|1);}{"}g;
 		$desc =~ s{&\x238230;}{...}g;
@@ -294,7 +308,7 @@ sub parse_csv {
 			$m = get_movie($title);
 		}
 
-		$SHOWCACHE[$num] = $m->{id};
+		$SHOWCACHE[$num] = { id => $m->{id}, epdate => $epdate };
 		if (! $m->{cast}) {
 			my $tmp = get_movie_details($m->{id});
 			$m->{$_} = $tmp->{$_} foreach keys %$tmp;
@@ -575,7 +589,8 @@ sub save_js {
 	my(@OUTPUT) = ();
 	for (my $iter = 1; $iter < @SHOWCACHE; ++$iter) {
 		$OUTPUT[$iter] = {
-			movie => $SHOWCACHE[$iter],
+			movie => $SHOWCACHE[$iter]->{id},
+			epdate => $SHOWCACHE[$iter]->{epdate},
 			guests => $GUESTCACHE[$iter],
 			live => $LIVECACHE[$iter] ne '0',
 			venue => $LIVECACHE[$iter] ne '0' && exists $VENUECACHE{$LIVECACHE[$iter]} ? $VENUECACHE{$LIVECACHE[$iter]}->{name} : '',

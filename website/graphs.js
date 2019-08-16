@@ -133,6 +133,67 @@ var GRAPH = [
 		 },
 	},
 	{
+		"title": "Movies covered the soonest",
+		"id": "movie-recent",
+		"graphType": "movies-list",
+		"prepFn": function() {
+			var sortme = Array();
+			for (var iter = 1; iter < SHOWS.length; ++iter) {
+				if (SHOWS[iter] && SHOWS[iter].movie && SHOWS[iter].epdate) {
+					var showD = new Date(parseInt(SHOWS[iter].epdate.substring(0,4)), parseInt(SHOWS[iter].epdate.substring(5,7)) - 1, parseInt(SHOWS[iter].epdate.substring(8,10)));
+					var movieD = new Date(parseInt(MOVIES[SHOWS[iter].movie].release_date.substring(0,4)), parseInt(MOVIES[SHOWS[iter].movie].release_date.substring(5,7)) - 1, parseInt(MOVIES[SHOWS[iter].movie].release_date.substring(8,10)));
+					var days = (showD - movieD) / 86400000;
+					sortme.push({ 'num': iter, 'value': days });
+				}
+			}
+			sortme.sort(ABVALUE);
+			console.log(sortme);
+			var labelArray = Array(), valueArray = Array(), showArray = Array();
+			for (var iter = 0; iter < sortme.length && iter < 25; ++iter) {
+				console.log(iter, sortme[iter]);
+				labelArray.push(MOVIES[SHOWS[sortme[iter].num].movie].title);
+				valueArray.push(sortme[iter].value);
+				showArray.push(sortme[iter].num);
+			}
+			return {
+				type: 'horizontalBar',
+				data: {
+					datasets: [{
+						label: 'Most recently covered films',
+						"data": valueArray,
+						backgroundColor: COLOR25,
+						datalabels: {
+							display: false
+						}
+					}],
+					labels: labelArray
+				},
+				options: {
+					legend: { display: false },
+					title: { display: true, text: "Most recently covered films", fontSize: 14 },
+					tooltips: {
+						callbacks: {
+							label: function(tooltipItem, data) {
+								return [ 
+									'Movie released: '+MOVIES[SHOWS[showArray[tooltipItem.index]].movie].release_date,
+									'Podcast released: '+SHOWS[showArray[tooltipItem.index]].epdate,
+									Math.floor(valueArray[tooltipItem.index]) + ' day' + (Math.floor(valueArray[tooltipItem.index]) != 1 ? 's' : '')
+								];
+							}
+						}
+					},
+					scales: {
+						yAxes: [{
+							ticks: {
+								beginAtZero: true
+							}
+						}]
+					}
+				}
+			};
+		}
+	},
+	{
 		"title": "Most frequent genres",
 		"id": "movie-genres",
 		"graphType": "movies-list",
