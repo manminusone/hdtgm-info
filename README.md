@@ -1,7 +1,7 @@
 # hdtgm-info 
 ## A static website for movie stats
 
-This repo generates a set of files that can be used to serve a static website. The data for these files is taken from various sources, and is specific to movies that have been reviewed on the podcast "How Did This Get Made?"
+This repo generates a set of files that can be used to serve a static website. The data for these files is taken from various sources, and is specific to movies that have been reviewed on the podcast ["How Did This Get Made?"](https://www.hdtgminfo.com/)
 
 The site is currently hosted at https://hdtgm.info/ so you should go check that out for the resulting information and graphs.
 
