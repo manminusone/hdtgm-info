@@ -415,7 +415,7 @@ var GRAPH = [
 		}
 	},
 	{
-		"title": "Guest hosts on covered movies",
+		"title": "Guest hosts in covered movies",
 		"id": "guests-in-movies",
 		"graphType": "people-list",
 		"prepFn": function() {
@@ -464,7 +464,7 @@ var GRAPH = [
 				},
 				options: {
 					legend: { display: false }, 
-					title: { display: true, text: "Guests who have been in movies", fontSize: 14 },
+					title: { display: true, text: "Guests who have been in HDTGM movies", fontSize: 14 },
 					tooltips: {
 						position: 'atMouse',
 						callbacks: {
