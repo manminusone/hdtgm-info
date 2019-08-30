@@ -178,23 +178,7 @@ MID
 # @LIVECACHE -- flags for live shows
 
 MID
-#	if ($opt_l) {
-#			print $fh "\@LIVECACHE = (\n";
-#			for (my $iter = 0; $iter < scalar @LIVECACHE; ++$iter) {
-#				if ($LIVECACHE[$iter] == 1) {
-#					print $fh "\t 1, # $iter\n";
-#				} elsif (length $LIVECACHE[$iter] > 1) {
-#					print $fh "\t qx(" . $LIVECACHE[$iter] . "),\n";
-#				} elsif (! defined $LIVECACHE[$iter]) {
-#					print $fh "\t undef,\n";
-#				} else {
-#					print $fh "\t $LIVECACHE[$iter],\n";
-#				}
-#			}
-#			print $fh ");\n\n";
-#	} else {
-		print $fh Data::Dumper->Dump( [ \@LIVECACHE ], [ '*LIVECACHE' ]);
-#	}
+	print $fh Data::Dumper->Dump( [ \@LIVECACHE ], [ '*LIVECACHE' ]);
 	print $fh <<'MID';
 
 # %VENUECACHE -- details on live venues
