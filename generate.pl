@@ -443,85 +443,98 @@ sub get_movie {
 	} else {
 		$changed = 1; # need to write the cache after this code 
 
-		my $url = 'https://api.themoviedb.org/3/search/movie?'.
-			'api_key='.$THEMOVIEDB_APIKEY.'&'.
-			'language=en-US&'.
-			'query='.uri_escape($title).'&'.
-			'include_adult=false';
-		if ($year) { $url .= '&year='.$year; }
-		my $result = throttled_get $url;
-		my $j; eval { $j = decode_json $result; };
-		if ($@) {
-			warn "Couldn't look up movie $title: $@";
-			return undef;
-		}
-		#print Dumper($j); exit 0;
+		#print "title = $title, year = $year\n"; exit 0;
 
-		if ($j->{total_results} == 0) {
-			warn "No results from searching for $title";
-			return undef;
+		my(@alt_titles) = ();
+		push @alt_titles, $title;
+		if ($title =~ m{ and }) {
+			$title =~ s{ and }{ \& };
+			push @alt_titles, $title;
 		}
-		if ($j->{total_results} == 1) { 
-			my $t = $j->{results}->[0];
-			$MOVIECACHE{$title} = data_subset($t);
-			return $MOVIECACHE{$title};
-		} else {
-			my(@results) = ();
-			push @results, $_ foreach @{$j->{results}};
-			while ($j->{total_pages} > 1 && $j->{page} < $j->{total_pages}) {
-				print "Retrieving page " . ($j->{page} + 1) . " of $j->{total_pages}\n";
-				my $urlplus = $url . "&page=" . ($j->{page} + 1);
-				$result = throttled_get $urlplus;
-				eval { $j = decode_json $result; };
-				if ($@) {
-					warn "Couldn't look up movie title: $@";
-					return undef;
-				}
+
+		foreach my $t (@alt_titles) {
+			my $url = 'https://api.themoviedb.org/3/search/movie?'.
+				'api_key='.$THEMOVIEDB_APIKEY.'&'.
+				'language=en-US&'.
+				'query='.uri_escape($title).'&'.
+				'include_adult=false';
+			if ($year) { $url .= '&year='.$year; }
+			my $result = throttled_get $url;
+			my $j; eval { $j = decode_json $result; };
+
+			if ($@) {
+				warn "Couldn't look up movie $title: $@";
+				next;
+			}
+			if ($j->{total_results} == 0) {
+				warn "No results from searching for $title";
+				next;
+			}
+
+			if ($j->{total_results} == 1) { 
+				my $t = $j->{results}->[0];
+				$MOVIECACHE{$title} = data_subset($t);
+				return $MOVIECACHE{$title};
+			} else {
+				my(@results) = ();
 				push @results, $_ foreach @{$j->{results}};
-			}
-
-			if (scalar @results > 25 && ! $year) {
-				print "Search results returned " . scalar(@results). " potential titles for '$title'.\n";
-				print "Enter the year for this movie to filter out incorrect titles (just hit Enter to skip): ";
-				chomp(my $in = <STDIN>);
-				if ($in > 1900) { $year = $in; }
-			}
-
-			if ($year) { # return specific item from specific year
-				@results = grep { substr($_->{release_date},0,4) == $year } @results;
-			}
-
-			# check for one record with exact title
-			my $located = 0; my $last = undef;
-			foreach my $i (@results) {
-				if (compare_titles($i->{title}, $title)) { # Case insensitive compare
-					++$located; $last = $i;
+				while ($j->{total_pages} > 1 && $j->{page} < $j->{total_pages}) {
+					print "Retrieving page " . ($j->{page} + 1) . " of $j->{total_pages}\n";
+					my $urlplus = $url . "&page=" . ($j->{page} + 1);
+					$result = throttled_get $urlplus;
+					eval { $j = decode_json $result; };
+					if ($@) {
+						warn "Couldn't look up movie title: $@";
+						next;
+					}
+					push @results, $_ foreach @{$j->{results}};
 				}
-			}
-			if ($located == 1) {
-				print "Found exactly 1 matching movie.\n";
-				$MOVIECACHE{$title} = data_subset($last);
-				return $MOVIECACHE{$title};
-			}
 
-			my(@yearcache) = ();
-			warn "Searching for movie $title came up with ".@{$j->{results}}." different titles, from these years:\n";
-			for (my $iter = 0; $iter < scalar @{$j->{results}}; ++$iter) {
-				$j->{results}->[$iter]->{release_date} =~ m{(\d\d\d\d)};
-				$yearcache[$iter] = $1;
-				printf("[%d] %s (%d)\n", $iter+1, $j->{results}->[$iter]->{title}, $yearcache[$iter]);
+				if (scalar @results > 25 && ! $year) {
+					print "Search results returned " . scalar(@results). " potential titles for '$title'.\n";
+					print "Enter the year for this movie to filter out incorrect titles (just hit Enter to skip): ";
+					chomp(my $in = <STDIN>);
+					if ($in > 1900) { $year = $in; }
+				}
+
+				if ($year) { # return specific item from specific year
+					@results = grep { substr($_->{release_date},0,4) == $year } @results;
+				}
+
+				# check for one record with exact title
+				my $located = 0; my $last = undef;
+				foreach my $i (@results) {
+					if (compare_titles($i->{title}, $title)) { # Case insensitive compare
+						++$located; $last = $i;
+					}
+				}
+				if ($located == 1) {
+					print "Found exactly 1 matching movie.\n";
+					$MOVIECACHE{$title} = data_subset($last);
+					return $MOVIECACHE{$title};
+				}
+
+				my(@yearcache) = ();
+				warn "Searching for movie $title came up with ".@{$j->{results}}." different titles, from these years:\n";
+				for (my $iter = 0; $iter < scalar @{$j->{results}}; ++$iter) {
+					$j->{results}->[$iter]->{release_date} =~ m{(\d\d\d\d)};
+					$yearcache[$iter] = $1;
+					printf("[%d] %s (%d)\n", $iter+1, $j->{results}->[$iter]->{title}, $yearcache[$iter]);
+				}
+				print "Enter a number of movie to use here (empty string means the first choice)\n";
+				chomp(my $in = <STDIN>);
+				$in = 1 if $in eq '';
+				if ($in >= 1 && $in <= scalar @{$j->{results}}) {
+					--$in;
+					$MOVIECACHE{$title} = data_subset($j->{results}->[$in]);
+					$YEARCACHE{$title} = $yearcache[$in];
+					print "Selecting ".$MOVIECACHE{$title}->{title} . " (" . $yearcache[$in] . ")\n";
+					return $MOVIECACHE{$title};
+				} else { write_cache(); croak "aborting."}
 			}
-			print "Enter a number of movie to use here (empty string means the first choice)\n";
-			chomp(my $in = <STDIN>);
-			$in = 1 if $in eq '';
-			if ($in >= 1 && $in <= scalar @{$j->{results}}) {
-				--$in;
-				$MOVIECACHE{$title} = data_subset($j->{results}->[$in]);
-				$YEARCACHE{$title} = $yearcache[$in];
-				print "Selecting ".$MOVIECACHE{$title}->{title} . " (" . $yearcache[$in] . ")\n";
-				return $MOVIECACHE{$title};
-			} else { write_cache(); croak "aborting."}
 		}
+
+		return undef; # no title found
 	}
 }
 
