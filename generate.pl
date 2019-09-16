@@ -734,7 +734,7 @@ if ($opt_m) {
 }
 
 if ($opt_t || $opt_a || ($opt_j && ! -e 'data.csv')) {
-	get_remote_html() if ! -f 'data.csv' or -M 'remote-html.txt' < -M 'data.csv';
+	get_remote_html() if ! -f 'data.csv' or -M 'remote-html.txt' > 7 or -M 'remote-html.txt' < -M 'data.csv';
 	parse_csv();
 }
 
