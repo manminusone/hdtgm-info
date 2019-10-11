@@ -28,7 +28,7 @@ my(@LIVECACHE) = ();           # show # => bool
 my(%VENUECACHE) = ();          # venue ID string => venue details
 
 my $HELPTEXT = <<FOO;
-Usage: generate.pl [ -c ] [ -t ] [ -j ] [ -a ] [ -m ##### ] [ -h ]
+Usage: generate.pl [ -c ] [ -t ] [ -j ] [ -a ] [ -m ##### ] [ -b ] [ -h ]
 
   -c  generate blank config file (if none exists)
   -t  generate intermediate text file
@@ -36,6 +36,7 @@ Usage: generate.pl [ -c ] [ -t ] [ -j ] [ -a ] [ -m ##### ] [ -h ]
   -a  do all steps
   -m  do a lookup for a specific movie title
   -l  look at live shows and determine their locations
+  -b  check out the box office data and print out any movies with incomplete numbers
   -h  print this message
 
 FOO
@@ -45,8 +46,8 @@ my $ua = LWP::UserAgent->new( cookie_jar => {} );
 $| = 1;
 
 # cmd line switches
-our($opt_t,$opt_j,$opt_a,$opt_h,$opt_c,$opt_l,$opt_m);
-getopts('tjahclm:');
+our($opt_t,$opt_j,$opt_a,$opt_h,$opt_c,$opt_l,$opt_m,$opt_b);
+getopts('tjahclm:b');
 
 
 ###
@@ -225,14 +226,16 @@ sub get_remote_html {
 		 || $l =~ m{Ep \x23\D}        # skip non-numbered episodes
 		 ;
 
-		if ($l =~ m{Ep \x23(\d+)}) { $num = $1; $LIVECACHE[$num] = 0; }
+		if ($l =~ m{Ep \x23(\d+)}) { $num = $1; $LIVECACHE[$num] = 0 if ! defined $LIVECACHE[$num]; }
+		next if defined $SHOWCACHE[$num];
+
 		if ($l =~ m{<a href="(.+)">(.+)</a>}) {
 			print "\t1 = $1, 2 = $2\n";
 			my $uri = $1;
 			$movie = $2;
 
 			if ($movie =~ m{\s+\(.+\)$}) { $movie = $`; }
-			if ($movie =~ m{:? LIVE}) { $LIVECACHE[$num] = 1; $movie = $`; }
+			if ($movie =~ m{:? LIVE}) { $LIVECACHE[$num] = 1 if ! defined $LIVECACHE[$num]; $movie = $`; }
 			push @currentlist, $movie;
 
 			push @currentlist, find_desc($uri);
@@ -248,7 +251,6 @@ sub get_remote_html {
 		printf $fh "%s\n", join("\t", ($iter, @{$MOVIELIST[$iter]}));
 	}
 	close $fh;
-	exit 0;
 }
 
 ## 
@@ -670,7 +672,7 @@ sub save_js {
 ###
 
 
-if ($opt_h || ! ($opt_t || $opt_j || $opt_a || $opt_m || $opt_c || $opt_l)) {
+if ($opt_h || ! ($opt_t || $opt_j || $opt_a || $opt_m || $opt_c || $opt_l || $opt_b)) {
 	print $HELPTEXT;
 	exit 0;
 }
@@ -687,6 +689,17 @@ if ($opt_c) {
 
 read_cache();
 
+if ($opt_b) { 
+	print "Movies with no budget or box office numbers:\n";
+	foreach my $title (sort keys %MOVIECACHE) {
+		print "\t$title\n" if $MOVIECACHE{$title}->{budget} == 0 and $MOVIECACHE{$title}->{revenue} == 0;
+	}
+	print "Movies with budget but no box office numbers:\n";
+	foreach my $title (sort keys %MOVIECACHE) {
+		print "\t$title\n" if $MOVIECACHE{$title}->{budget} > 0 and $MOVIECACHE{$title}->{revenue} == 0;
+	}
+	exit 0;
+}
 
 if ($opt_l) {
 	open FIL, '<', 'data.csv' or croak $!;
@@ -734,7 +747,7 @@ if ($opt_m) {
 }
 
 if ($opt_t || $opt_a || ($opt_j && ! -e 'data.csv')) {
-	get_remote_html() if ! -f 'data.csv' or -M 'remote-html.txt' < -M 'data.csv';
+	get_remote_html() if ! -M 'remote-html.txt' > 7 or -f 'data.csv' or -M 'remote-html.txt' < -M 'data.csv';
 	parse_csv();
 }
 
