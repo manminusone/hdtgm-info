@@ -92,19 +92,13 @@ my $hp = HTML::Parser->new(
 
 sub find_desc {
 	my($uri) = @_;
-	my $u = URI::URL->new($uri, 'http://www.earwolf.com/');
-	my $descresp = $ua->get($u->abs);
+	my $descresp = $ua->get("http://www.earwolf.com${uri}");
+	croak $descresp->status_line if ! $descresp->is_success;
 
 	%PARSEVAR = ();
 	$hp->parse($descresp->decoded_content);
 	return ($PARSEVAR{data}, $PARSEVAR{date});
 }
-
-#open FIL, '<', 'temp.html' or die $!;
-#my $txt = join('', <FIL>);
-#close FIL;
-#$hp->parse($txt);
-#exit 0;
 
 
 ###
@@ -227,8 +221,6 @@ sub get_remote_html {
 		 ;
 
 		if ($l =~ m{Ep \x23(\d+)}) { $num = $1; $LIVECACHE[$num] = 0 if ! defined $LIVECACHE[$num]; }
-		next if defined $SHOWCACHE[$num];
-
 		if ($l =~ m{<a href="(.+)">(.+)</a>}) {
 			print "\t1 = $1, 2 = $2\n";
 			my $uri = $1;
@@ -379,8 +371,8 @@ sub compare_titles {
 	if ($t1 =~ m{[/:\!]} || $t2 =~ m{[/:\!]}) { # some troublesome punctuation
 		my $t1_copy = $t1; $t1_copy =~ y{/:!}{   }s;
 		my $t2_copy = $t2; $t2_copy =~ y{/:!}{   }s;
-		$t1_copy =~ s{\s+}{ }g;
-		$t2_copy =~ s{\s+}{ }g;
+		$t1_copy =~ s/\s+/ /g;
+		$t2_copy =~ s/\s+/ /g;
 		return 1 if lc $t1_copy eq lc $t2_copy;
 	}
 	return 0;
@@ -739,7 +731,6 @@ if ($opt_m) {
 	my $md = get_movie($opt_m);
 	if ($md->{id}) {
 		my $md2 = get_movie_details($md->{id});
-		#print Dumper($md2);
 		$md->{$_} = $md2->{$_} foreach keys %$md2;
 	}
 	print Dumper($md);
@@ -747,7 +738,7 @@ if ($opt_m) {
 }
 
 if ($opt_t || $opt_a || ($opt_j && ! -e 'data.csv')) {
-	get_remote_html() if ! -M 'remote-html.txt' > 7 or -f 'data.csv' or -M 'remote-html.txt' < -M 'data.csv';
+	get_remote_html(); # if ! -M 'remote-html.txt' > 7 or -f 'data.csv' or -M 'remote-html.txt' < -M 'data.csv';
 	parse_csv();
 }
 
