@@ -199,6 +199,16 @@ sub get_remote_html {
 	my(@MOVIELIST) = ();
 	my $fh;
 
+	if (-e 'data.csv') {
+		open FIL, '<', 'data.csv' or die $!;
+		while (! eof FIL) {
+			my $foo = <FIL>;
+			$foo =~ s{\s+$}{};
+			my @c = split(/\t/, $foo);
+			$MOVIELIST[$c[0]] = \@c;
+		}
+		close FIL;
+	}
 	if (-e 'remote-html.txt' && -M 'remote-html.txt' < 7) { # can have recently retrieved file cached on local disk
 		open $fh, '<', 'remote-html.txt' or croak $!;
 		$txt = join('',<$fh>);
@@ -212,6 +222,7 @@ sub get_remote_html {
 		print $fh $txt;
 		close $fh;
 	}
+	OUTER:
 	while ($txt =~ m{<li>(.+)</li>}gm) {
 		$movie = ''; @currentlist = (); 
 		my $l = $1;
@@ -220,9 +231,11 @@ sub get_remote_html {
 		 || $l =~ m{Ep \x23\D}        # skip non-numbered episodes
 		 ;
 
-		if ($l =~ m{Ep \x23(\d+)}) { $num = $1; $LIVECACHE[$num] = 0 if ! defined $LIVECACHE[$num]; }
+		if ($l =~ m{Ep \x23(\d+)}) { $num = $1; }
 		if ($l =~ m{<a href="(.+)">(.+)</a>}) {
 			print "\t1 = $1, 2 = $2\n";
+			# TODO - may need to retain csv data if available
+			next OUTER if $MOVIELIST[$num];
 			my $uri = $1;
 			$movie = $2;
 
@@ -279,51 +292,49 @@ sub parse_csv {
 		my $desc = shift @field; 
 		my $epdate = shift @field;
 
-		my(@TMPDATE) = strptime($epdate);
-		if ($TMPDATE[5] > 0) {
-			$epdate = sprintf("%04d-%02d-%02d", $TMPDATE[5] + 1900, $TMPDATE[4] + 1, $TMPDATE[3]);
+		if (! $SHOWCACHE[$num]) {  # get show info
+			my(@TMPDATE) = strptime($epdate);
+			if ($TMPDATE[5] > 0) {
+				$epdate = sprintf("%04d-%02d-%02d", $TMPDATE[5] + 1900, $TMPDATE[4] + 1, $TMPDATE[3]);
+			}
+
+			$desc =~ s{&\x23821(6|7);}{'}g;
+			$desc =~ s{&\x23822(0|1);}{"}g;
+			$desc =~ s{&\x238230;}{...}g;
+			$desc =~ s{&\x238211;}{-}g;
+
+			$title = clean_title($title);
+			next if $title =~ m{Howdies};  # special episode recognition
+			next if $title eq 'Zardoz 2';
+			printf("%3d . %s\n", $num, $title);
+			#printf("%3d . %s\n%s\n\n", $num, $title, $desc); exit 0;
+
+			my($foundyear) = undef;
+			if ($desc =~ m{\b((19|20)\d\d)\b}) { $foundyear = $1; print "\tfound year $foundyear in show description\n"; }
+			my $m = get_movie($title, $YEARCACHE{$title} || $foundyear);
+			if ($m eq undef && $foundyear ne '') {
+				print "No movie found with specified date, checking plain title\n";
+				$m = get_movie($title);
+			}
+			$SHOWCACHE[$num] = { id => $m->{id}, epdate => $epdate };
+			if (! $m->{cast}) {
+				my $tmp = get_movie_details($m->{id});
+				$m->{$_} = $tmp->{$_} foreach keys %$tmp;
+
+			}
+			foreach my $p (@field) {
+				my $resp = get_person($p);
+				if (! $GUESTCACHE[$num]) { $GUESTCACHE[$num] = [ ] ; }
+				if ($resp){
+					push @{$GUESTCACHE[$num]}, $resp;
+					} else {
+						warn "unknown person $p\n";
+						push @{$GUESTCACHE[$num]}, $p;
+						$PERSONCACHE{$p} = $p;
+					}
+			}
+			$GUESTCACHE[$num] = uniq($GUESTCACHE[$num]);
 		}
-
-		$desc =~ s{&\x23821(6|7);}{'}g;
-		$desc =~ s{&\x23822(0|1);}{"}g;
-		$desc =~ s{&\x238230;}{...}g;
-		$desc =~ s{&\x238211;}{-}g;
-
-		$title = clean_title($title);
-		next if $title =~ m{Howdies};  # special episode recognition
-		next if $title eq 'Zardoz 2';
-		printf("%3d . %s\n", $num, $title);
-		#printf("%3d . %s\n%s\n\n", $num, $title, $desc); exit 0;
-
-		my($foundyear) = undef;
-		if ($desc =~ m{\b((19|20)\d\d)\b}) { $foundyear = $1; print "\tfound year $foundyear in show description\n"; }
-
-
-		my $m = get_movie($title, $YEARCACHE{$title} || $foundyear);
-
-		if ($m eq undef && $foundyear ne '') {
-			print "No movie found with specified date, checking plain title\n";
-			$m = get_movie($title);
-		}
-
-		$SHOWCACHE[$num] = { id => $m->{id}, epdate => $epdate };
-		if (! $m->{cast}) {
-			my $tmp = get_movie_details($m->{id});
-			$m->{$_} = $tmp->{$_} foreach keys %$tmp;
-
-		}
-		foreach my $p (@field) {
-			my $resp = get_person($p);
-			if (! $GUESTCACHE[$num]) { $GUESTCACHE[$num] = [ ] ; }
-			if ($resp){
-				push @{$GUESTCACHE[$num]}, $resp;
-				} else {
-					warn "unknown person $p\n";
-					push @{$GUESTCACHE[$num]}, $p;
-					$PERSONCACHE{$p} = $p;
-				}
-		}
-		$GUESTCACHE[$num] = uniq($GUESTCACHE[$num]);
 		write_cache() if $changed;
 	}
 	close $fh;
@@ -657,7 +668,10 @@ sub save_js {
 	close $fh;
 }
 
-
+# sort a list of titles that might have "The" 
+sub the_sort {
+	return ($a =~ m{^The (.+)} ? lc $1 : lc $a) cmp ($b =~ m{^The (.+)} ? lc $1 : lc $b);
+}
 
 ###
 ### MAIN CODE
@@ -679,15 +693,16 @@ if ($opt_c) {
 	exit 0;
 }
 
-read_cache();
+read_cache(); 
+
 
 if ($opt_b) { 
 	print "Movies with no budget or box office numbers:\n";
-	foreach my $title (sort keys %MOVIECACHE) {
+	foreach my $title (sort the_sort keys %MOVIECACHE) {
 		print "\t$title\n" if $MOVIECACHE{$title}->{budget} == 0 and $MOVIECACHE{$title}->{revenue} == 0;
 	}
 	print "Movies with budget but no box office numbers:\n";
-	foreach my $title (sort keys %MOVIECACHE) {
+	foreach my $title (sort the_sort keys %MOVIECACHE) {
 		print "\t$title\n" if $MOVIECACHE{$title}->{budget} > 0 and $MOVIECACHE{$title}->{revenue} == 0;
 	}
 	exit 0;
@@ -738,7 +753,7 @@ if ($opt_m) {
 }
 
 if ($opt_t || $opt_a || ($opt_j && ! -e 'data.csv')) {
-	get_remote_html(); # if ! -M 'remote-html.txt' > 7 or -f 'data.csv' or -M 'remote-html.txt' < -M 'data.csv';
+	get_remote_html(); # TODO - determine when this should be done
 	parse_csv();
 }
 
