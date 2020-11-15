@@ -205,7 +205,8 @@ sub get_remote_html {
 			my $foo = <FIL>;
 			$foo =~ s{\s+$}{};
 			my @c = split(/\t/, $foo);
-			$MOVIELIST[$c[0]] = \@c;
+			$num = shift @c;
+			$MOVIELIST[$num] = \@c;
 		}
 		close FIL;
 	}
