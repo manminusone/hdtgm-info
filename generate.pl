@@ -366,6 +366,7 @@ sub clean_title {
 	my($t) = @_;
 	# A place to remove any notations from the title
 
+	return "Burlesque" if $t =~ m{10 Year Anniversary Reflections and Burlesque};
 	$t =~ s{Director's Edition: }{};
 	$t =~ s{: Director's Edition}{};
 	return $t;
