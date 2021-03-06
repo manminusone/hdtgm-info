@@ -43,8 +43,10 @@ var GRAPH = [
 			var tally = Array();
 
 			for (var m = 1; m < SHOWS.length; ++m)
-				if (SHOWS[m].live == 1)
+				if (SHOWS[m].live == 1) {
+					console.log(m,'city',SHOWS[m].city,'state',SHOWS[m].state);
 					tally[SHOWS[m].city + ', ' + SHOWS[m].state] = isNaN(tally[SHOWS[m].city + ', ' + SHOWS[m].state]) ? 1 : tally[SHOWS[m].city + ', ' + SHOWS[m].state] + 1;
+				}
 			var okeys = Object.keys(tally);
 			for (let k of okeys)
 				sortMe.push({ 'label': k, 'value': tally[k]});

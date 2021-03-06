@@ -201,6 +201,7 @@ sub get_remote_html {
 
 	if (-e 'data.csv') {
 		open FIL, '<', 'data.csv' or die $!;
+		binmode FIL, ":encoding(UTF-8)";  
 		while (! eof FIL) {
 			my $foo = <FIL>;
 			$foo =~ s{\s+$}{};
@@ -212,6 +213,7 @@ sub get_remote_html {
 	}
 	if (-e 'remote-html.txt' && -M 'remote-html.txt' < 7) { # can have recently retrieved file cached on local disk
 		open $fh, '<', 'remote-html.txt' or croak $!;
+		binmode FIL, ":encoding(UTF-8)";  
 		$txt = join('',<$fh>);
 		close $fh;
 	} else {
@@ -228,9 +230,11 @@ sub get_remote_html {
 		$movie = ''; @currentlist = (); 
 		my $l = $1;
 		next if $l =~ m{Minisode}  # skip mini episodes
-         || $l =~ m{Ep \x23\d+\.}     # skip other in-between episodes
-		 || $l =~ m{Ep \x23\D}        # skip non-numbered episodes
+         || $l =~ m{Ep \x23\d+\.}      		# skip other in-between episodes
+		 || $l =~ m{Ep \x23\D}        		# skip non-numbered episodes
+		 || $l =~ m{10 Year Anniversary}	# skip 10-year re-run of Burlesque
 		 ;
+		print "l = $l\n";
 
 		if ($l =~ m{Ep \x23(\d+)}) { $num = $1; }
 		if ($l =~ m{<a href="(.+)">(.+)</a>}) {
@@ -254,6 +258,7 @@ sub get_remote_html {
 	open $fh, '>', 'data.csv' or croak $!;
 	binmode $fh, ":utf8";
 	for (my $iter = 1; $iter < scalar @MOVIELIST; ++$iter) {
+		next unless $MOVIELIST[$iter];
 		printf $fh "%s\n", join("\t", ($iter, @{$MOVIELIST[$iter]}));
 	}
 	close $fh;
@@ -307,6 +312,7 @@ sub parse_csv {
 			$title = clean_title($title);
 			next if $title =~ m{Howdies};  # special episode recognition
 			next if $title eq 'Zardoz 2';
+			next if $title =~ m{Burlesque} and $num > 1;
 			printf("%3d . %s\n", $num, $title);
 			#printf("%3d . %s\n%s\n\n", $num, $title, $desc); exit 0;
 
@@ -366,7 +372,6 @@ sub clean_title {
 	my($t) = @_;
 	# A place to remove any notations from the title
 
-	return "Burlesque" if $t =~ m{10 Year Anniversary Reflections and Burlesque};
 	$t =~ s{Director's Edition: }{};
 	$t =~ s{: Director's Edition}{};
 	return $t;
@@ -712,6 +717,7 @@ if ($opt_b) {
 
 if ($opt_l) {
 	open FIL, '<', 'data.csv' or croak $!;
+	binmode FIL, ":encoding(UTF-8)";  
 
 	while (! eof FIL) {
 		my $line = <FIL>; $line =~ s{\s+$}{};
