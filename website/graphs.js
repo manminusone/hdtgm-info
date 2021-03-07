@@ -43,8 +43,10 @@ var GRAPH = [
 			var tally = Array();
 
 			for (var m = 1; m < SHOWS.length; ++m)
-				if (SHOWS[m].live == 1)
+				if (SHOWS[m].live == 1) {
+					console.log(m,'city',SHOWS[m].city,'state',SHOWS[m].state);
 					tally[SHOWS[m].city + ', ' + SHOWS[m].state] = isNaN(tally[SHOWS[m].city + ', ' + SHOWS[m].state]) ? 1 : tally[SHOWS[m].city + ', ' + SHOWS[m].state] + 1;
+				}
 			var okeys = Object.keys(tally);
 			for (let k of okeys)
 				sortMe.push({ 'label': k, 'value': tally[k]});
@@ -255,7 +257,7 @@ var GRAPH = [
 			var sparseColorArray = Array();
 			var years = [];
 			function initColorArray() {
-				for (var i = 1950; i < 2020; i += 10) {
+				for (var i = 1950; i <= 2020; i += 10) {
 					var baseColor;
 					switch (i) {
 						case 1950: baseColor = Array(255,204,153); break;
@@ -265,6 +267,7 @@ var GRAPH = [
 						case 1990: baseColor = Array(255,255,153); break;
 						case 2000: baseColor = Array(153,255,255); break;
 						case 2010: baseColor = Array(204,153,255); break;
+						case 2020: baseColor = Array(153,224,0); break;
 					}
 					sparseColorArray[i] = '#' + ('0'+baseColor[0].toString(16)).substr(-2) + ('0'+baseColor[1].toString(16)).substr(-2) + ('0'+baseColor[2].toString(16)).substr(-2);
 				}
@@ -331,7 +334,7 @@ var GRAPH = [
 			var sparseColorArray = Array();
 			var years = [];
 			function initColorArray() {
-				for (var i = 1950; i < 2020; i += 10) {
+				for (var i = 1950; i <= 2020; i += 10) {
 					var baseColor;
 					switch (i) {
 						case 1950: baseColor = Array(255,204,153); break;
@@ -341,6 +344,7 @@ var GRAPH = [
 						case 1990: baseColor = Array(255,255,153); break;
 						case 2000: baseColor = Array(153,255,255); break;
 						case 2010: baseColor = Array(204,153,255); break;
+						case 2020: baseColor = Array(153,224,0); break;
 					}
 					for (var j = i; j < i + 10; ++j) {
 						var thisCopy = baseColor.slice(0);

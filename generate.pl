@@ -27,8 +27,11 @@ my(@SHOWCACHE) = ();           # show # => movie ID
 my(@LIVECACHE) = ();           # show # => bool
 my(%VENUECACHE) = ();          # venue ID string => venue details
 
+use constant HTMLCACHE => 'remote-html.txt';
+use constant DATAFILE => DATAFILE;
+
 my $HELPTEXT = <<FOO;
-Usage: generate.pl [ -c ] [ -t ] [ -j ] [ -a ] [ -m ##### ] [ -h ]
+Usage: generate.pl [ -c ] [ -t ] [ -j ] [ -a ] [ -m ##### ] [ -b ] [ -h ]
 
   -c  generate blank config file (if none exists)
   -t  generate intermediate text file
@@ -36,6 +39,7 @@ Usage: generate.pl [ -c ] [ -t ] [ -j ] [ -a ] [ -m ##### ] [ -h ]
   -a  do all steps
   -m  do a lookup for a specific movie title
   -l  look at live shows and determine their locations
+  -b  check out the box office data and print out any movies with incomplete numbers
   -h  print this message
 
 FOO
@@ -45,8 +49,8 @@ my $ua = LWP::UserAgent->new( cookie_jar => {} );
 $| = 1;
 
 # cmd line switches
-our($opt_t,$opt_j,$opt_a,$opt_h,$opt_c,$opt_l,$opt_m);
-getopts('tjahclm:');
+our($opt_t,$opt_j,$opt_a,$opt_h,$opt_c,$opt_l,$opt_m,$opt_b);
+getopts('tjahclm:b');
 
 
 ###
@@ -91,19 +95,13 @@ my $hp = HTML::Parser->new(
 
 sub find_desc {
 	my($uri) = @_;
-	my $u = URI::URL->new($uri, 'http://www.earwolf.com/');
-	my $descresp = $ua->get($u->abs);
+	my $descresp = $ua->get("http://www.earwolf.com${uri}");
+	croak $descresp->status_line if ! $descresp->is_success;
 
 	%PARSEVAR = ();
 	$hp->parse($descresp->decoded_content);
 	return ($PARSEVAR{data}, $PARSEVAR{date});
 }
-
-#open FIL, '<', 'temp.html' or die $!;
-#my $txt = join('', <FIL>);
-#close FIL;
-#$hp->parse($txt);
-#exit 0;
 
 
 ###
@@ -195,7 +193,7 @@ FTR
 }
 
 ##
-## get the HTML containing the list of episodes and save it in CSV format
+## get the HTML containing the list of episodes and save it in TSV format
 ## 
 
 sub get_remote_html {
@@ -204,51 +202,69 @@ sub get_remote_html {
 	my(@MOVIELIST) = ();
 	my $fh;
 
-	if (-e 'remote-html.txt' && -M 'remote-html.txt' < 7) { # can have recently retrieved file cached on local disk
-		open $fh, '<', 'remote-html.txt' or croak $!;
+	if (-e DATAFILE) {
+		open FIL, '<', DATAFILE or die $!;
+		binmode FIL, ":encoding(UTF-8)";  
+		while (! eof FIL) {
+			my $foo = <FIL>;
+			$foo =~ s{\s+$}{};
+			my @c = split(/\t/, $foo);
+			$num = shift @c;
+			$MOVIELIST[$num] = \@c;
+		}
+		close FIL;
+	}
+	if (-e HTMLCACHE && -M HTMLCACHE < 7) { # can have recently retrieved file cached on local disk
+		open $fh, '<', HTMLCACHE or croak $!;
+		binmode FIL, ":encoding(UTF-8)";  
 		$txt = join('',<$fh>);
 		close $fh;
 	} else {
 		my $resp = $ua->get("http://www.earwolf.com/alleps-ajax.php?show=2682");
 		croak $resp->status_line unless $resp->is_success;
 		$txt = $resp->decoded_content; 
-		open $fh, '>', 'remote-html.txt' or croak $!;
-		binmode $fh, ':utf8';
+		open $fh, '>', HTMLCACHE or croak $!;
+		binmode $fh, ':encoding(UTF-8)';
 		print $fh $txt;
 		close $fh;
 	}
+	OUTER:
 	while ($txt =~ m{<li>(.+)</li>}gm) {
 		$movie = ''; @currentlist = (); 
 		my $l = $1;
 		next if $l =~ m{Minisode}  # skip mini episodes
-         || $l =~ m{Ep \x23\d+\.}     # skip other in-between episodes
-		 || $l =~ m{Ep \x23\D}        # skip non-numbered episodes
+         || $l =~ m{Ep \x23\d+\.}      		# skip other in-between episodes
+		 || $l =~ m{Ep \x23\D}        		# skip non-numbered episodes
+		 || $l =~ m{10 Year Anniversary}	# skip 10-year re-run of Burlesque
 		 ;
+		print "l = $l\n";
 
-		if ($l =~ m{Ep \x23(\d+)}) { $num = $1; $LIVECACHE[$num] = 0; }
+		if ($l =~ m{Ep \x23(\d+)}) { $num = $1; }
 		if ($l =~ m{<a href="(.+)">(.+)</a>}) {
 			print "\t1 = $1, 2 = $2\n";
+			# TODO - may need to retain tsv data if available
+			next OUTER if $MOVIELIST[$num];
 			my $uri = $1;
 			$movie = $2;
 
 			if ($movie =~ m{\s+\(.+\)$}) { $movie = $`; }
-			if ($movie =~ m{:? LIVE}) { $LIVECACHE[$num] = 1; $movie = $`; }
+			if ($movie =~ m{:? LIVE}) { $LIVECACHE[$num] = 1 if ! defined $LIVECACHE[$num]; $movie = $`; }
 			push @currentlist, $movie;
 
 			push @currentlist, find_desc($uri);
 
-		} else { warn "no movie found in this line: $l" }
+		} else { carp "no movie found in this line: $l" }
 		while ($l =~ m{<span>([^<]+)</span>}g) { push @currentlist, $1; }
 		$MOVIELIST[$num] = [ @currentlist ];
 	}
 	write_cache();
-	open $fh, '>', 'data.csv' or croak $!;
-	binmode $fh, ":utf8";
+	open $fh, '>', DATAFILE or croak $!;
+	binmode $fh, ":encoding(UTF-8)";
 	for (my $iter = 1; $iter < scalar @MOVIELIST; ++$iter) {
+		next unless $MOVIELIST[$iter];
 		printf $fh "%s\n", join("\t", ($iter, @{$MOVIELIST[$iter]}));
 	}
 	close $fh;
-	exit 0;
 }
 
 ## 
@@ -267,15 +283,15 @@ sub uniq {
 }
 
 ## 
-## read the previously generated CSV file 
+## read the previously generated tsv file 
 ## 
 
 my $changed = 0;
 
-sub parse_csv {
+sub parse_tsv {
 	my $fh;
-	open $fh, '<', 'data.csv' or croak $!;
-	binmode $fh, ":utf8";
+	open $fh, '<', DATAFILE or croak $!;
+	binmode $fh, ":encoding(UTF-8)";
 	while (! eof $fh) {
 		$changed = 0;
 		chomp(my $line = <$fh>);
@@ -285,51 +301,48 @@ sub parse_csv {
 		my $desc = shift @field; 
 		my $epdate = shift @field;
 
-		my(@TMPDATE) = strptime($epdate);
-		if ($TMPDATE[5] > 0) {
-			$epdate = sprintf("%04d-%02d-%02d", $TMPDATE[5] + 1900, $TMPDATE[4] + 1, $TMPDATE[3]);
+		if (! $SHOWCACHE[$num]) {  # get show info
+			my(@TMPDATE) = strptime($epdate);
+			if ($TMPDATE[5] > 0) {
+				$epdate = sprintf("%04d-%02d-%02d", $TMPDATE[5] + 1900, $TMPDATE[4] + 1, $TMPDATE[3]);
+			}
+
+			$desc =~ s{&\x23821(6|7);}{'}g;
+			$desc =~ s{&\x23822(0|1);}{"}g;
+			$desc =~ s{&\x238230;}{...}g;
+			$desc =~ s{&\x238211;}{-}g;
+
+			$title = clean_title($title);
+			next if $title =~ m{Howdies};  # special episode recognition
+			next if $title eq 'Zardoz 2';
+			next if $title =~ m{Burlesque} and $num > 1;
+
+			my($foundyear) = undef;
+			if ($desc =~ m{\b((19|20)\d\d)\b}) { $foundyear = $1; print "\tfound year $foundyear in show description\n"; }
+			my $m = get_movie($title, $YEARCACHE{$title} || $foundyear);
+			if ($m eq undef && $foundyear ne '') {
+				print "No movie found with specified date, checking plain title\n";
+				$m = get_movie($title);
+			}
+			$SHOWCACHE[$num] = { id => $m->{id}, epdate => $epdate };
+			if (! $m->{cast}) {
+				my $tmp = get_movie_details($m->{id});
+				$m->{$_} = $tmp->{$_} foreach keys %$tmp;
+
+			}
+			foreach my $p (@field) {
+				my $resp = get_person($p);
+				if (! $GUESTCACHE[$num]) { $GUESTCACHE[$num] = [ ] ; }
+				if ($resp){
+					push @{$GUESTCACHE[$num]}, $resp;
+					} else {
+						carp "unknown person $p\n";
+						push @{$GUESTCACHE[$num]}, $p;
+						$PERSONCACHE{$p} = $p;
+					}
+			}
+			$GUESTCACHE[$num] = uniq($GUESTCACHE[$num]);
 		}
-
-		$desc =~ s{&\x23821(6|7);}{'}g;
-		$desc =~ s{&\x23822(0|1);}{"}g;
-		$desc =~ s{&\x238230;}{...}g;
-		$desc =~ s{&\x238211;}{-}g;
-
-		$title = clean_title($title);
-		next if $title =~ m{Howdies};  # special episode recognition
-		next if $title eq 'Zardoz 2';
-		printf("%3d . %s\n", $num, $title);
-		#printf("%3d . %s\n%s\n\n", $num, $title, $desc); exit 0;
-
-		my($foundyear) = undef;
-		if ($desc =~ m{\b((19|20)\d\d)\b}) { $foundyear = $1; print "\tfound year $foundyear in show description\n"; }
-
-
-		my $m = get_movie($title, $YEARCACHE{$title} || $foundyear);
-
-		if ($m eq undef && $foundyear ne '') {
-			print "No movie found with specified date, checking plain title\n";
-			$m = get_movie($title);
-		}
-
-		$SHOWCACHE[$num] = { id => $m->{id}, epdate => $epdate };
-		if (! $m->{cast}) {
-			my $tmp = get_movie_details($m->{id});
-			$m->{$_} = $tmp->{$_} foreach keys %$tmp;
-
-		}
-		foreach my $p (@field) {
-			my $resp = get_person($p);
-			if (! $GUESTCACHE[$num]) { $GUESTCACHE[$num] = [ ] ; }
-			if ($resp){
-				push @{$GUESTCACHE[$num]}, $resp;
-				} else {
-					warn "unknown person $p\n";
-					push @{$GUESTCACHE[$num]}, $p;
-					$PERSONCACHE{$p} = $p;
-				}
-		}
-		$GUESTCACHE[$num] = uniq($GUESTCACHE[$num]);
 		write_cache() if $changed;
 	}
 	close $fh;
@@ -377,8 +390,8 @@ sub compare_titles {
 	if ($t1 =~ m{[/:\!]} || $t2 =~ m{[/:\!]}) { # some troublesome punctuation
 		my $t1_copy = $t1; $t1_copy =~ y{/:!}{   }s;
 		my $t2_copy = $t2; $t2_copy =~ y{/:!}{   }s;
-		$t1_copy =~ s{\s+}{ }g;
-		$t2_copy =~ s{\s+}{ }g;
+		$t1_copy =~ s/\s+/ /g;
+		$t2_copy =~ s/\s+/ /g;
 		return 1 if lc $t1_copy eq lc $t2_copy;
 	}
 	return 0;
@@ -397,7 +410,7 @@ sub get_movie_details {
 	my $url = 'https://api.themoviedb.org/3/movie/'.$mid . '/credits?api_key='.$THEMOVIEDB_APIKEY;
 	my $resp = throttled_get $url;
 	eval { $obj = decode_json $resp };
-	warn $@ if $@;
+	carp $@ if $@;
 	foreach my $p (@{$obj->{cast}}) {
 		if (! $PERSONCACHE{$p->{name}}) {
 			$PERSONCACHE{$p->{name}} = $p->{id};
@@ -408,7 +421,7 @@ sub get_movie_details {
 	$url = 'https://api.themoviedb.org/3/movie/'.$mid . '?api_key='.$THEMOVIEDB_APIKEY;
 	$resp = throttled_get $url;
 	eval { $obj = decode_json $resp };
-	warn $@ if $@;
+	carp $@ if $@;
 	$retval->{budget} = $obj->{budget};
 	$retval->{revenue} = $obj->{revenue};
 	#print Dumper($retval); exit 0;
@@ -447,11 +460,11 @@ sub get_movie {
 			my $j; eval { $j = decode_json $result; };
 
 			if ($@) {
-				warn "Couldn't look up movie $title: $@";
+				carp "Couldn't look up movie $title: $@";
 				next;
 			}
 			if ($j->{total_results} == 0) {
-				warn "No results from searching for $title";
+				carp "No results from searching for $title";
 				next;
 			}
 
@@ -468,7 +481,7 @@ sub get_movie {
 					$result = throttled_get $urlplus;
 					eval { $j = decode_json $result; };
 					if ($@) {
-						warn "Couldn't look up movie title: $@";
+						carp "Couldn't look up movie title: $@";
 						next;
 					}
 					push @results, $_ foreach @{$j->{results}};
@@ -499,7 +512,7 @@ sub get_movie {
 				}
 
 				my(@yearcache) = ();
-				warn "Searching for movie $title came up with ".@{$j->{results}}." different titles, from these years:\n";
+				carp "Searching for movie $title came up with ".@{$j->{results}}." different titles, from these years:\n";
 				for (my $iter = 0; $iter < scalar @{$j->{results}}; ++$iter) {
 					$j->{results}->[$iter]->{release_date} =~ m{(\d\d\d\d)};
 					$yearcache[$iter] = $1;
@@ -531,7 +544,7 @@ sub get_genre_list {
 	my $url = 'https://api.themoviedb.org/3/genre/movie/list?api_key='.$THEMOVIEDB_APIKEY;
 	my $resp = throttled_get $url;
 	my $j = undef; eval { $j = decode_json $resp; };
-	if ($@) { warn $@; return undef; }
+	if ($@) { carp $@; return undef; }
 	foreach my $e (@{$j->{genres}}) { $GENRECACHE{$e->{id}} = $e->{name}; }
 }
 
@@ -551,7 +564,7 @@ sub get_person {
 			'include_adult=false';
 		my $resp = throttled_get $url;
 		my $j = undef; eval { $j = decode_json $resp; } ;
-		if ($@) { warn $@; return undef; }
+		if ($@) { carp $@; return undef; }
 		if ($j->{total_results} == 1) {
 			$PERSONCACHE{$p} = $j->{results}->[0]->{id};
 			return $j->{results}->[0]->{id};
@@ -663,21 +676,24 @@ sub save_js {
 	close $fh;
 }
 
-
+# sort a list of titles that might have "The" 
+sub the_sort {
+	return ($a =~ m{^The (.+)} ? lc $1 : lc $a) cmp ($b =~ m{^The (.+)} ? lc $1 : lc $b);
+}
 
 ###
 ### MAIN CODE
 ###
 
 
-if ($opt_h || ! ($opt_t || $opt_j || $opt_a || $opt_m || $opt_c || $opt_l)) {
+if ($opt_h || ! ($opt_t || $opt_j || $opt_a || $opt_m || $opt_c || $opt_l || $opt_b)) {
 	print $HELPTEXT;
 	exit 0;
 }
 
 if ($opt_c) {
 	if (-e 'cache.pl') {
-		warn "cache.pl exists, so I won't write a new file. Delete the existing file if you want a blank cache.pl file.\n";
+		carp "cache.pl exists, so I won't write a new file. Delete the existing file if you want a blank cache.pl file.\n";
 	} else {
 		write_cache();
 		print "cache.pl written.\n";
@@ -685,11 +701,24 @@ if ($opt_c) {
 	exit 0;
 }
 
-read_cache();
+read_cache(); 
 
+
+if ($opt_b) { 
+	print "Movies with no budget or box office numbers:\n";
+	foreach my $title (sort the_sort keys %MOVIECACHE) {
+		print "\t$title\n" if $MOVIECACHE{$title}->{budget} == 0 and $MOVIECACHE{$title}->{revenue} == 0;
+	}
+	print "Movies with budget but no box office numbers:\n";
+	foreach my $title (sort the_sort keys %MOVIECACHE) {
+		print "\t$title\n" if $MOVIECACHE{$title}->{budget} > 0 and $MOVIECACHE{$title}->{revenue} == 0;
+	}
+	exit 0;
+}
 
 if ($opt_l) {
-	open FIL, '<', 'data.csv' or croak $!;
+	open FIL, '<', DATAFILE or croak $!;
+	binmode FIL, ":encoding(UTF-8)";  
 
 	while (! eof FIL) {
 		my $line = <FIL>; $line =~ s{\s+$}{};
@@ -717,7 +746,7 @@ if ($opt_l) {
 }
 
 if ($THEMOVIEDB_APIKEY eq '') {
-	warn "You need to provide the API key in cache.pl. See docs for details.\n";
+	carp "You need to provide the API key in cache.pl. See docs for details.\n";
 	exit 1;
 }
 get_genre_list();
@@ -726,16 +755,15 @@ if ($opt_m) {
 	my $md = get_movie($opt_m);
 	if ($md->{id}) {
 		my $md2 = get_movie_details($md->{id});
-		#print Dumper($md2);
 		$md->{$_} = $md2->{$_} foreach keys %$md2;
 	}
 	print Dumper($md);
 	exit 0;
 }
 
-if ($opt_t || $opt_a || ($opt_j && ! -e 'data.csv')) {
-	get_remote_html() if ! -f 'data.csv' or -M 'remote-html.txt' > 7 or -M 'remote-html.txt' < -M 'data.csv';
-	parse_csv();
+if ($opt_t || $opt_a || ($opt_j && ! -e DATAFILE)) {
+	get_remote_html(); # TODO - determine when this should be done
+	parse_tsv();
 }
 
 if ($opt_j || $opt_a) {
