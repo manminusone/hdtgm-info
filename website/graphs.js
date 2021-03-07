@@ -8,6 +8,7 @@ Chart.Tooltip.positioners.atMouse = function(elements, eventPosition) {
 
 var GRAPHCACHE = Array();
 var COLOR25 = [ '#00ff80','#33cc80','#669980','#996680','#993300','#ff0000','#cc0033','#990066','#660099','#3300cc','#0000ff','#0033cc','#006699','#009966','#00cc33','#00ff00','#00ff33','#00ff66','#00ff99','#00ffcc','#00ffff','#00cccc','#339999','#665599','#990099' ]; 
+var PIE25 = [ '#00813e','#007a64','#007184','#00669b','#0059a3','#00489b','2e3385',  '#80328e','#c12d85','#f23c6f','#ff654f','#ff9724','#ffcc00','#e2ff03', '#c8df23','#aebf2f','#94a135','#7c8438','#636738','#4b4c36','#333333', '#4a3633','#603833','#753a34','#8b3a34' ]; 
 var ABVALUE = function(a,b){ return a.value - b.value; };
 var BAVALUE = function(a,b){ return b.value - a.value; };
 
@@ -33,6 +34,64 @@ function showGraph(which) {
 }
 
 var GRAPH = [
+	{
+		"id" : "live-city",
+		"graphType": "misc-list",
+		"title": "Cities hosting live shows",
+		"prepFn": function() {
+			var sortMe = Array();
+			var tally = Array();
+
+			for (var m = 1; m < SHOWS.length; ++m)
+				if (SHOWS[m].live == 1) {
+					console.log(m,'city',SHOWS[m].city,'state',SHOWS[m].state);
+					tally[SHOWS[m].city + ', ' + SHOWS[m].state] = isNaN(tally[SHOWS[m].city + ', ' + SHOWS[m].state]) ? 1 : tally[SHOWS[m].city + ', ' + SHOWS[m].state] + 1;
+				}
+			var okeys = Object.keys(tally);
+			for (let k of okeys)
+				sortMe.push({ 'label': k, 'value': tally[k]});
+			sortMe.sort(BAVALUE);
+			var labelArray = Array(), valueArray= Array();
+			var grandTot = 0;
+			for (var n = 0; n < sortMe.length; ++n) {
+				labelArray.push(sortMe[n].label);
+				valueArray.push(sortMe[n].value);
+				grandTot += sortMe[n].value;
+			}
+			return {
+	 			type: 'pie',
+	 			data: {
+	 				datasets: [{
+	 					label: "Cities hosting live shows",
+	 					data: valueArray,
+	 					backgroundColor: PIE25,
+	 					datalabels: {
+	 						formatter: function(value, context) {
+    							return ''; // value + ' (' + Math.round((value / grandTot) * 100) + '%)';
+							}
+	 					}
+	 				}] ,
+	 				labels: labelArray
+	 			},
+	 			options: {
+	 				legend: {
+	 					position: 'left'
+	 				},
+	 				tooltips: {
+	 					callbacks: {
+	 						label: function(tooltipItem, data) {
+	 							// console.log(tooltipItem);
+	 							// console.log(data);
+	 							var thisnum = data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index];
+	 							return [ labelArray[tooltipItem.index] , thisnum + ' show' + (thisnum != 1 ? 's' : '') + ' (' + Math.round((thisnum / grandTot) * 100) + '%)' ];
+	 						}
+	 					}
+	 				},
+					title: { display: true, text: "Cities hosting live shows", fontSize: 14 },
+	 			}
+	 		};
+		}
+	},
 	{
 		"id" : "live-shows",
 		"graphType": "misc-list",
@@ -74,6 +133,67 @@ var GRAPH = [
 	 			}
 	 		};
 		 },
+	},
+	{
+		"title": "Movies covered the soonest",
+		"id": "movie-recent",
+		"graphType": "movies-list",
+		"prepFn": function() {
+			var sortme = Array();
+			for (var iter = 1; iter < SHOWS.length; ++iter) {
+				if (SHOWS[iter] && SHOWS[iter].movie && SHOWS[iter].epdate) {
+					var showD = new Date(parseInt(SHOWS[iter].epdate.substring(0,4)), parseInt(SHOWS[iter].epdate.substring(5,7)) - 1, parseInt(SHOWS[iter].epdate.substring(8,10)));
+					var movieD = new Date(parseInt(MOVIES[SHOWS[iter].movie].release_date.substring(0,4)), parseInt(MOVIES[SHOWS[iter].movie].release_date.substring(5,7)) - 1, parseInt(MOVIES[SHOWS[iter].movie].release_date.substring(8,10)));
+					var days = (showD - movieD) / 86400000;
+					sortme.push({ 'num': iter, 'value': days });
+				}
+			}
+			sortme.sort(ABVALUE);
+			console.log(sortme);
+			var labelArray = Array(), valueArray = Array(), showArray = Array();
+			for (var iter = 0; iter < sortme.length && iter < 25; ++iter) {
+				console.log(iter, sortme[iter]);
+				labelArray.push(MOVIES[SHOWS[sortme[iter].num].movie].title);
+				valueArray.push(sortme[iter].value);
+				showArray.push(sortme[iter].num);
+			}
+			return {
+				type: 'horizontalBar',
+				data: {
+					datasets: [{
+						label: 'Most recently covered films',
+						"data": valueArray,
+						backgroundColor: COLOR25,
+						datalabels: {
+							display: false
+						}
+					}],
+					labels: labelArray
+				},
+				options: {
+					legend: { display: false },
+					title: { display: true, text: "Most recently covered films", fontSize: 14 },
+					tooltips: {
+						callbacks: {
+							label: function(tooltipItem, data) {
+								return [ 
+									'Movie released: '+MOVIES[SHOWS[showArray[tooltipItem.index]].movie].release_date,
+									'Podcast released: '+SHOWS[showArray[tooltipItem.index]].epdate,
+									Math.floor(valueArray[tooltipItem.index]) + ' day' + (Math.floor(valueArray[tooltipItem.index]) != 1 ? 's' : '')
+								];
+							}
+						}
+					},
+					scales: {
+						yAxes: [{
+							ticks: {
+								beginAtZero: true
+							}
+						}]
+					}
+				}
+			};
+		}
 	},
 	{
 		"title": "Most frequent genres",
@@ -137,7 +257,7 @@ var GRAPH = [
 			var sparseColorArray = Array();
 			var years = [];
 			function initColorArray() {
-				for (var i = 1950; i < 2020; i += 10) {
+				for (var i = 1950; i <= 2020; i += 10) {
 					var baseColor;
 					switch (i) {
 						case 1950: baseColor = Array(255,204,153); break;
@@ -147,6 +267,7 @@ var GRAPH = [
 						case 1990: baseColor = Array(255,255,153); break;
 						case 2000: baseColor = Array(153,255,255); break;
 						case 2010: baseColor = Array(204,153,255); break;
+						case 2020: baseColor = Array(153,224,0); break;
 					}
 					sparseColorArray[i] = '#' + ('0'+baseColor[0].toString(16)).substr(-2) + ('0'+baseColor[1].toString(16)).substr(-2) + ('0'+baseColor[2].toString(16)).substr(-2);
 				}
@@ -213,7 +334,7 @@ var GRAPH = [
 			var sparseColorArray = Array();
 			var years = [];
 			function initColorArray() {
-				for (var i = 1950; i < 2020; i += 10) {
+				for (var i = 1950; i <= 2020; i += 10) {
 					var baseColor;
 					switch (i) {
 						case 1950: baseColor = Array(255,204,153); break;
@@ -223,6 +344,7 @@ var GRAPH = [
 						case 1990: baseColor = Array(255,255,153); break;
 						case 2000: baseColor = Array(153,255,255); break;
 						case 2010: baseColor = Array(204,153,255); break;
+						case 2020: baseColor = Array(153,224,0); break;
 					}
 					for (var j = i; j < i + 10; ++j) {
 						var thisCopy = baseColor.slice(0);
@@ -297,7 +419,7 @@ var GRAPH = [
 		}
 	},
 	{
-		"title": "Guest hosts on covered movies",
+		"title": "Guest hosts in covered movies",
 		"id": "guests-in-movies",
 		"graphType": "people-list",
 		"prepFn": function() {
@@ -346,7 +468,7 @@ var GRAPH = [
 				},
 				options: {
 					legend: { display: false }, 
-					title: { display: true, text: "Guests who have been in movies", fontSize: 14 },
+					title: { display: true, text: "Guests who have been in HDTGM movies", fontSize: 14 },
 					tooltips: {
 						position: 'atMouse',
 						callbacks: {
@@ -495,6 +617,69 @@ var GRAPH = [
 						xAxes: [{
 							ticks: {
 								beginAtZero: true
+							}
+						}]
+					}
+				}
+			};
+
+		}
+	},
+	{
+		"title": "Least expensive movies",
+		"id": "movie-budget-least",
+		"graphType": "movies-list",
+		"prepFn": function() {
+			var sortArray = Array();
+			for (var iter = 1; iter < SHOWS.length; ++iter) {
+				if (! SHOWS[iter]) continue;
+				if (! SHOWS[iter].movie) continue;
+				if (MOVIES[SHOWS[iter].movie].budget == 0) continue;
+				
+				sortArray.push({ id: SHOWS[iter].movie, value: MOVIES[SHOWS[iter].movie].budget });
+			}
+			sortArray.sort(ABVALUE);
+			var labelArray = Array(), movieIdArray = Array(), valueArray = Array();
+			for (var i = 0; i < 25; ++i) {
+				labelArray[i] = MOVIES[sortArray[i].id].title;
+				valueArray[i] = sortArray[i].value;
+				movieIdArray[i] = sortArray[i].id;
+			}
+			return {
+				type: 'horizontalBar',
+				data: {
+					datasets: [{
+						label: "The least expensive movies",
+						data: valueArray,
+						backgroundColor: COLOR25,
+						datalabels: {
+							display: false
+						}
+					}],
+					labels: labelArray
+				},
+				options: {
+					legend: { display: false }, 
+					title: { display: true, text: "The least expensive movies", fontSize: 14 },
+					tooltips: {
+						position: 'atMouse',
+						callbacks: {
+							label: function(tooltipItem, data) {
+								var dollars = tooltipItem.xLabel;
+								return '$' + dollars.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
+							}
+						}
+					},
+					scales: {
+						xAxes: [{
+							ticks: {
+								beginAtZero: true,
+								callback: function(value, index, values) {
+									if (value >= 1000000)
+										return '$' + Math.round(value / 1000000) + 'M';
+									else
+										return '$' + value;
+								}
 							}
 						}]
 					}
