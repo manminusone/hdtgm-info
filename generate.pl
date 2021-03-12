@@ -28,7 +28,7 @@ my(@LIVECACHE) = ();           # show # => bool
 my(%VENUECACHE) = ();          # venue ID string => venue details
 
 use constant HTMLCACHE => 'remote-html.txt';
-use constant DATAFILE => DATAFILE;
+use constant DATAFILE => 'data.csv';
 
 my $HELPTEXT = <<FOO;
 Usage: generate.pl [ -c ] [ -t ] [ -j ] [ -a ] [ -m ##### ] [ -b ] [ -h ]
