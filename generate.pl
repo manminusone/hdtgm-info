@@ -100,6 +100,9 @@ sub find_desc {
 
 	%PARSEVAR = ();
 	$hp->parse($descresp->decoded_content);
+	if ($PARSEVAR{data} =~ m{[\r\n]}) { ## break tags started showing up in the desc
+		$PARSEVAR{data} = (split(/[\r\n]+/,$PARSEVAR{data}))[0];
+	}
 	return ($PARSEVAR{data}, $PARSEVAR{date});
 }
 
@@ -236,6 +239,7 @@ sub get_remote_html {
          || $l =~ m{Ep \x23\d+\.}      		# skip other in-between episodes
 		 || $l =~ m{Ep \x23\D}        		# skip non-numbered episodes
 		 || $l =~ m{10 Year Anniversary}	# skip 10-year re-run of Burlesque
+		 || $1 =~ m{re\-release}i           # skip re-release of episodes
 		 ;
 		print "l = $l\n";
 
@@ -248,7 +252,9 @@ sub get_remote_html {
 			$movie = $2;
 
 			if ($movie =~ m{\s+\(.+\)$}) { $movie = $`; }
-			if ($movie =~ m{:? LIVE}) { $LIVECACHE[$num] = 1 if ! defined $LIVECACHE[$num]; $movie = $`; }
+			if ($movie =~ m{:?[\s\xa0]+LIVE}) { $LIVECACHE[$num] = 1 if ! defined $LIVECACHE[$num]; $movie = $`; }
+			print "-- movie = $movie\n";
+			$movie =~ s{\xa0}{ }g; # remove non-breaking spaces
 			push @currentlist, $movie;
 
 			push @currentlist, find_desc($uri);
@@ -316,6 +322,7 @@ sub parse_tsv {
 			next if $title =~ m{Howdies};  # special episode recognition
 			next if $title eq 'Zardoz 2';
 			next if $title =~ m{Burlesque} and $num > 1;
+			printf("%3d . %s\n", $num, $title);
 
 			my($foundyear) = undef;
 			if ($desc =~ m{\b((19|20)\d\d)\b}) { $foundyear = $1; print "\tfound year $foundyear in show description\n"; }
